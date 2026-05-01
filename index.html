@@ -39,8 +39,61 @@
       僅取得姓名與 Email 供身份識別<br>
       不會用於其他用途
     </div>
+
+    <!-- 開發者模式：點 LOGO 5下才出現 -->
+    <div id="dev-panel" style="display:none;margin-top:20px;padding:14px;background:#f0ede6;border-radius:8px;border:1px dashed #c8c2b4;">
+      <div style="font-size:11px;color:#9e9890;margin-bottom:10px;font-weight:600;">🛠 開發者預覽模式</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="devLogin('teacher')" style="padding:8px;border:1px solid #e0dbd0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">👩‍🏫 以老師身份進入</button>
+        <button onclick="devLogin('student-active')" style="padding:8px;border:1px solid #e0dbd0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">🎓 以學生身份進入（已審核）</button>
+        <button onclick="devLogin('student-pending')" style="padding:8px;border:1px solid #e0dbd0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">⏳ 以學生身份進入（待審核）</button>
+        <button onclick="devLogin('public')" style="padding:8px;border:1px solid #e0dbd0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">💼 以社會人士身份進入</button>
+        <button onclick="devLogin('onboard')" style="padding:8px;border:1px solid #e0dbd0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">👋 首次設定頁面</button>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+// 點 LOGO 5下才顯示開發者模式
+let clickCount = 0;
+document.querySelector('.login-logo').addEventListener('click', () => {
+  clickCount++;
+  if (clickCount >= 5) {
+    document.getElementById('dev-panel').style.display = 'block';
+    clickCount = 0;
+  }
+});
+
+function devLogin(type) {
+  if (type === 'teacher') {
+    sessionStorage.setItem('devMode', JSON.stringify({
+      role: 'teacher', name: '陳老師', email: 'istevenyu@gmail.com'
+    }));
+    window.location.href = 'teacher.html?dev=1';
+  } else if (type === 'student-active') {
+    sessionStorage.setItem('devMode', JSON.stringify({
+      role: 'student', status: 'active', name: '王小明',
+      email: 'student@test.com', class: '201', school: '測試學校'
+    }));
+    window.location.href = 'student.html?dev=1';
+  } else if (type === 'student-pending') {
+    sessionStorage.setItem('devMode', JSON.stringify({
+      role: 'student', status: 'pending', name: '李大華',
+      email: 'student2@test.com', class: '202', school: '測試學校'
+    }));
+    window.location.href = 'pending.html?dev=1';
+  } else if (type === 'public') {
+    sessionStorage.setItem('devMode', JSON.stringify({
+      role: 'public', status: 'active', name: '張志遠',
+      email: 'public@test.com', occupation: '上班族', purpose: '應試準備（丙級檢定）'
+    }));
+    window.location.href = 'student.html?dev=1';
+  } else if (type === 'onboard') {
+    window.location.href = 'onboard.html?dev=1';
+  }
+}
+</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

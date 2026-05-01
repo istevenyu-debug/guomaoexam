@@ -223,6 +223,14 @@ let selectedStatQuiz = '';
 
 // ======== 登入驗證 ========
 onAuthStateChanged(auth, async (user) => {
+  // 開發者模式
+  const devData = sessionStorage.getItem('devMode');
+  if (devData && new URLSearchParams(location.search).get('dev')) {
+    const dev = JSON.parse(devData);
+    document.getElementById("teacher-name").textContent = dev.name;
+    await loadPublishedQuizzes();
+    return;
+  }
   if (!user || user.email !== TEACHER_EMAIL) {
     window.location.href = "index.html"; return;
   }

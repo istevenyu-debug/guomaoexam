@@ -127,6 +127,17 @@ let wrongQs = [];
 let lastPractice10Indices = [];
 
 onAuthStateChanged(auth, async (user) => {
+  // 開發者模式
+  const devData = sessionStorage.getItem('devMode');
+  if (devData && new URLSearchParams(location.search).get('dev')) {
+    userData = JSON.parse(devData);
+    currentUser = { uid: 'dev-user', email: userData.email };
+    document.getElementById("stu-avatar").textContent = (userData.name || "學")[0];
+    document.getElementById("stu-name").textContent = userData.name;
+    document.getElementById("stu-class").textContent = userData.class || userData.occupation || '';
+    await loadQuizzes();
+    return;
+  }
   if (!user) { window.location.href = "index.html"; return; }
   if (user.email === TEACHER_EMAIL) { window.location.href = "teacher.html"; return; }
   currentUser = user;
