@@ -59,11 +59,16 @@
 let clickCount = 0;
 document.querySelector('.login-logo').addEventListener('click', () => {
   clickCount++;
-  if (clickCount >= 5) {
+  if (clickCount >= 3) {
     document.getElementById('dev-panel').style.display = 'block';
     clickCount = 0;
   }
 });
+
+// 網址加 ?dev 直接開啟開發者面板
+if (new URLSearchParams(location.search).get('dev') !== null) {
+  document.getElementById('dev-panel').style.display = 'block';
+}
 
 function devLogin(type) {
   if (type === 'teacher') {
