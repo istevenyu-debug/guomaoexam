@@ -1,0 +1,22 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.bat",
+      "**/*.md"
+    ],
+    "rewrites": [
+      { "source": "/", "destination": "/index.html" },
+      { "source": "/teacher", "destination": "/teacher.html" },
+      { "source": "/student", "destination": "/student.html" },
+      { "source": "/onboard", "destination": "/onboard.html" },
+      { "source": "/pending", "destination": "/pending.html" }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

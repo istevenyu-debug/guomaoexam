@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>學生練習 - 國貿丙檢練習平台</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.page-wrap{display:flex;flex-direction:column;height:100vh;}
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+  <div class="topbar">
+    <div class="logo">國貿丙檢 <span>練習平台</span></div>
+    <div class="user-pill">
+      <div class="avatar" id="stu-avatar">學</div>
+      <span id="stu-name"></span>
+      <span style="font-size:12px;color:var(--text3);margin-left:2px;" id="stu-class"></span>
+      <button class="btn btn-sm" onclick="doLogout()" style="margin-left:8px;">登出</button>
+    </div>
+  </div>
+
+  <!-- 學生導覽 -->
+  <div class="navbar">
+    <button class="nav-group-btn on" id="snav-quiz" onclick="sNav('quiz')" style="border-bottom:2.5px solid var(--accent);color:var(--accent);">📝 練習題目</button>
+    <button class="nav-group-btn" id="snav-record" onclick="sNav('record')" style="border-bottom:2.5px solid transparent;">📈 我的成績</button>
+    <button class="nav-logout" onclick="doLogout()">🚪 登出</button>
+  </div>
+
+  <div class="main-content">
+
+    <!-- 練習題目 -->
+    <div class="panel on" id="sp-quiz">
+
+      <div class="view on" id="sv-list">
+        <div class="card">
+          <div class="card-head"><div class="card-title">可練習的題卷</div></div>
+          <div id="s-quiz-list"><div style="font-size:13px;color:var(--text3);text-align:center;padding:24px;">載入中...</div></div>
+        </div>
+      </div>
+
+      <div class="view" id="sv-mode">
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title" id="mode-title"></div><div class="card-sub" id="mode-meta"></div></div>
+            <button class="btn btn-sm" onclick="sShowV('sv-list')">← 返回</button>
+          </div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">選擇練習方式</div>
+          <div class="mode-cards">
+            <div class="mode-card on" id="mc-10" onclick="pickMode(10)"><div class="mode-num">10</div><div class="mode-lbl">10題練習</div><div class="mode-desc">亂數出題，不重複上次</div></div>
+            <div class="mode-card" id="mc-all" onclick="pickMode('all')"><div class="mode-num">全</div><div class="mode-lbl">考全部</div><div class="mode-desc">亂數排列全部題目</div></div>
+          </div>
+          <div style="text-align:right;"><button class="btn btn-primary" onclick="startPractice()">開始練習 →</button></div>
+        </div>
+      </div>
+
+      <div class="view" id="sv-practice">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:15px;font-weight:600;" id="prac-title"></div><div class="prog-dots" id="prog-dots"></div></div>
+          <div style="font-size:12px;font-family:var(--mono);color:var(--text3);padding-top:2px;" id="prac-meta"></div>
+        </div>
+        <div id="prac-qs"></div>
+        <div style="text-align:right;margin-top:8px;" id="submit-row">
+          <button class="btn btn-primary" onclick="submitPractice()">交卷並批改 ✓</button>
+        </div>
+      </div>
+
+      <div class="view" id="sv-result">
+        <div class="score-banner" id="score-banner" style="display:block;">
+          <div class="score-big" id="score-big">—</div>
+          <div class="score-sub-text" id="score-sub"></div>
+          <div class="score-row">
+            <div class="score-item"><div class="score-item-n" id="sc-correct" style="color:var(--accent)">0</div><div class="score-item-l">答對</div></div>
+            <div class="score-item"><div class="score-item-n" id="sc-wrong" style="color:var(--danger)">0</div><div class="score-item-l">答錯</div></div>
+            <div class="score-item"><div class="score-item-n" id="sc-total">0</div><div class="score-item-l">總題數</div></div>
+          </div>
+          <div class="action-grid">
+            <div class="action-btn" onclick="again10()"><div class="action-icon">🔄</div><div class="action-lbl">再來 10 題</div><div class="action-desc">不重複上次題目</div></div>
+            <div class="action-btn" onclick="againAll()"><div class="action-icon">📋</div><div class="action-lbl">考全部</div><div class="action-desc">亂數排列全部</div></div>
+            <div class="action-btn" id="wrong-btn" onclick="doWrongQ()"><div class="action-icon">🎯</div><div class="action-lbl">錯題加強</div><div class="action-desc" id="wrong-desc">針對本次錯題</div></div>
+            <div class="action-btn back-btn" onclick="sShowV('sv-list')"><div class="action-icon">⬅</div><div class="action-lbl">回上一頁</div><div class="action-desc">選其他題卷</div></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-head"><div class="card-title">本次詳解</div></div><div id="result-qs"></div></div>
+      </div>
+
+    </div>
+
+    <!-- 我的成績 -->
+    <div class="panel" id="sp-record">
+      <div class="card">
+        <div class="card-head"><div class="card-title">我的成績統計</div></div>
+        <div id="my-stat-summary"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">練習記錄</div></div>
+        <div id="my-hist"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs,
+  query, where, orderBy, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig, TEACHER_EMAIL } from "./js/config.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const OPTS = ['A','B','C','D'];
+let currentUser = null;
+let userData = null;
+let publishedQuizzes = [];
+let curQuiz = null;
+let selMode = 10;
+let practiceQs = [];
+let answers = {};
+let submitted = false;
+let wrongQs = [];
+let lastPractice10Indices = [];
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { window.location.href = "index.html"; return; }
+  if (user.email === TEACHER_EMAIL) { window.location.href = "teacher.html"; return; }
+  currentUser = user;
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists()) { window.location.href = "onboard.html"; return; }
+  userData = snap.data();
+  if (userData.status === "pending") { window.location.href = "pending.html"; return; }
+  if (userData.status === "suspended") { alert("帳號已被停用，請聯繫老師。"); await signOut(auth); window.location.href = "index.html"; return; }
+  document.getElementById("stu-avatar").textContent = (userData.name || "學")[0];
+  document.getElementById("stu-name").textContent = userData.name || user.email;
+  document.getElementById("stu-class").textContent = userData.class || userData.occupation || '';
+  await loadQuizzes();
+});
+
+window.doLogout = async () => { await signOut(auth); window.location.href = "index.html"; };
+
+// 導覽
+window.sNav = (id) => {
+  document.querySelectorAll("#snav-quiz,#snav-record").forEach(b => {
+    b.classList.remove("on"); b.style.borderBottom = "2.5px solid transparent"; b.style.color = "";
+  });
+  document.getElementById("snav-" + id).classList.add("on");
+  document.getElementById("snav-" + id).style.borderBottom = "2.5px solid var(--accent)";
+  document.getElementById("snav-" + id).style.color = "var(--accent)";
+  document.querySelectorAll('[id^="sp-"]').forEach(p => p.classList.remove("on"));
+  document.getElementById("sp-" + id).classList.add("on");
+  if (id === "record") renderRecord();
+};
+
+window.sShowV = (id) => {
+  document.querySelectorAll('#sp-quiz .view').forEach(v => v.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  document.querySelector(".main-content").scrollTop = 0;
+};
+
+// 載入題卷
+async function loadQuizzes() {
+  const cls = userData.class;
+  let q;
+  if (cls) {
+    q = query(collection(db, "quizzes"), where("status", "==", "published"), where("cls", "in", [cls, "全部班級"]));
+  } else {
+    q = query(collection(db, "quizzes"), where("status", "==", "published"));
+  }
+  const snap = await getDocs(q);
+  publishedQuizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderSQuizList();
+}
+
+function renderSQuizList() {
+  const el = document.getElementById("s-quiz-list");
+  if (!publishedQuizzes.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:24px;">老師尚未發布任何題卷<br><span style="font-size:12px;">請稍後再來</span></div>'; return; }
+  el.innerHTML = publishedQuizzes.map(q => `
+    <div class="quiz-item" onclick="pickQuiz('${q.id}')">
+      <div class="quiz-icon">📋</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:500;">${q.name}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px;">${q.cls}・${q.questions.length} 題</div></div>
+      <div style="color:var(--text3);font-size:20px;">›</div>
+    </div>`).join('');
+}
+
+window.pickQuiz = (id) => {
+  curQuiz = publishedQuizzes.find(q => q.id === id);
+  if (!curQuiz) return;
+  document.getElementById("mode-title").textContent = curQuiz.name;
+  document.getElementById("mode-meta").textContent = curQuiz.cls + "・" + curQuiz.questions.length + " 題";
+  selMode = 10;
+  document.getElementById("mc-10").classList.add("on");
+  document.getElementById("mc-all").classList.remove("on");
+  sShowV("sv-mode");
+};
+
+window.pickMode = (m) => {
+  selMode = m;
+  document.getElementById("mc-10").classList.toggle("on", m === 10);
+  document.getElementById("mc-all").classList.toggle("on", m === "all");
+};
+
+window.startPractice = (pool, forceMode) => {
+  if (!curQuiz) return;
+  const src = pool || curQuiz.questions;
+  const mode = forceMode || selMode;
+  if (mode === "all") {
+    practiceQs = [...src].sort(() => Math.random() - .5);
+  } else {
+    const allIdx = src.map((_, i) => i);
+    let available = allIdx.filter(i => !lastPractice10Indices.includes(i));
+    if (available.length < 10) { lastPractice10Indices = []; available = [...allIdx]; }
+    const picked = available.sort(() => Math.random() - .5).slice(0, 10);
+    lastPractice10Indices = picked;
+    practiceQs = picked.map(i => src[i]);
+  }
+  answers = {}; submitted = false; wrongQs = [];
+  window._currentMode = mode;
+  renderPractice();
+  sShowV("sv-practice");
+};
+
+window.again10 = () => { selMode = 10; window.startPractice(null, 10); };
+window.againAll = () => { selMode = "all"; window.startPractice(null, "all"); };
+window.doWrongQ = () => { if (wrongQs.length) window.startPractice(wrongQs, 10); };
+
+function renderPractice() {
+  document.getElementById("prac-title").textContent = curQuiz.name;
+  document.getElementById("prac-meta").textContent = practiceQs.length + " 題";
+  document.getElementById("submit-row").style.display = "block";
+  document.getElementById("prog-dots").innerHTML = practiceQs.map((_, i) => `<div class="prog-dot" id="pd-${i}"></div>`).join('');
+  document.getElementById("prac-qs").innerHTML = practiceQs.map((q, qi) => `
+    <div class="q-card">
+      <div class="q-label">第 ${qi+1} 題 · Q${q.num}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="options">${(q.options||[]).map((o, oi) => `
+        <div class="option" id="o-${qi}-${oi}" onclick="pick(${qi},${oi})">
+          <div class="opt-badge">${OPTS[oi]}</div><div>${o}</div>
+        </div>`).join('')}</div>
+      <div class="q-explain" id="ex-${qi}"><div class="explain-tag">AI 詳解</div><div id="ex-body-${qi}"></div></div>
+    </div>`).join('');
+}
+
+window.pick = (qi, oi) => {
+  if (submitted) return;
+  answers[qi] = oi;
+  practiceQs[qi].options.forEach((_, i) => document.getElementById(`o-${qi}-${i}`).classList.toggle("selected", i === oi));
+  const dot = document.getElementById(`pd-${qi}`); if (dot) dot.classList.add("done");
+};
+
+window.submitPractice = async () => {
+  if (submitted) return; submitted = true;
+  let correct = 0; wrongQs = [];
+  practiceQs.forEach((q, qi) => {
+    const chosen = answers[qi];
+    q.options.forEach((_, oi) => {
+      const el = document.getElementById(`o-${qi}-${oi}`);
+      el.classList.add("locked"); el.classList.remove("selected");
+      if (oi === q.answer) el.classList.add("correct");
+      else if (oi === chosen && chosen !== q.answer) el.classList.add("wrong");
+    });
+    const ok = chosen === q.answer; if (ok) correct++; else wrongQs.push(q);
+    const dot = document.getElementById(`pd-${qi}`);
+    if (dot) { dot.classList.remove("done"); dot.classList.add(ok ? "done" : "wrong-dot"); }
+    const exBox = document.getElementById(`ex-${qi}`); const exBody = document.getElementById(`ex-body-${qi}`);
+    exBox.classList.add("show"); exBody.innerHTML = '<span style="font-style:italic;font-size:12px;color:var(--text3);">載入詳解...</span>';
+    setTimeout(() => { exBody.textContent = q.explain || "此題暫無詳解。"; }, 200 + qi * 100);
+  });
+
+  const mode = window._currentMode || selMode;
+  const pct = Math.round(correct / practiceQs.length * 100);
+  const wc = practiceQs.length - correct;
+
+  // 儲存到 Firestore
+  try {
+    await addDoc(collection(db, "results"), {
+      uid: currentUser.uid, name: userData.name, class: userData.class || null,
+      role: userData.role, occupation: userData.occupation || null,
+      quizId: curQuiz.id, quizName: curQuiz.name,
+      score: pct, correct, total: practiceQs.length, mode,
+      answers: Object.fromEntries(practiceQs.map((_, qi) => [qi, answers[qi] ?? -1])),
+      createdAt: serverTimestamp()
+    });
+
+    // 個人統計
+    const statKey = currentUser.uid + "_" + curQuiz.id;
+    const statRef = doc(db, "student_stats", statKey);
+    const statSnap = await getDoc(statRef);
+    const prev = statSnap.exists() ? statSnap.data() : {
+      uid: currentUser.uid, name: userData.name,
+      class: userData.class || null, role: userData.role,
+      occupation: userData.occupation || null,
+      quizId: curQuiz.id, quizName: curQuiz.name,
+      practice10Count: 0, practice10Total: 0, examAllCount: 0, examAllTotal: 0
+    };
+    if (mode === "all") { prev.examAllCount = (prev.examAllCount||0)+1; prev.examAllTotal = (prev.examAllTotal||0)+pct; }
+    else { prev.practice10Count = (prev.practice10Count||0)+1; prev.practice10Total = (prev.practice10Total||0)+pct; }
+    prev.updatedAt = serverTimestamp();
+    await setDoc(statRef, prev);
+
+    // 錯題統計（考全部才存）
+    if (mode === "all" && userData.class) {
+      const errKey = userData.class + "_" + curQuiz.id;
+      const errRef = doc(db, "class_errors", errKey);
+      const errSnap = await getDoc(errRef);
+      const errData = errSnap.exists() ? errSnap.data() : {
+        class: userData.class, quizId: curQuiz.id, quizName: curQuiz.name,
+        totalExams: 0, questionErrors: {}
+      };
+      errData.totalExams = (errData.totalExams||0)+1;
+      practiceQs.forEach((q, qi) => {
+        const qKey = "q" + q.num;
+        if (!errData.questionErrors[qKey]) errData.questionErrors[qKey] = { num: q.num, text: q.text, wrong: 0, total: 0 };
+        errData.questionErrors[qKey].total++;
+        if (answers[qi] !== q.answer) errData.questionErrors[qKey].wrong++;
+      });
+      errData.updatedAt = serverTimestamp();
+      await setDoc(errRef, errData);
+    }
+  } catch(e) { console.error("儲存失敗", e); }
+
+  // 顯示結果
+  document.getElementById("score-big").textContent = pct + "分";
+  document.getElementById("score-big").className = "score-big " + (pct>=80?"great":pct>=60?"ok":"bad");
+  document.getElementById("score-sub").textContent = curQuiz.name + "・批改完成";
+  document.getElementById("sc-correct").textContent = correct;
+  document.getElementById("sc-wrong").textContent = wc;
+  document.getElementById("sc-total").textContent = practiceQs.length;
+  const wb = document.getElementById("wrong-btn"); const wd = document.getElementById("wrong-desc");
+  if (wc === 0) { wb.style.opacity = ".4"; wb.style.cursor = "default"; wd.textContent = "本次全部答對！"; }
+  else { wb.style.opacity = "1"; wb.style.cursor = "pointer"; wd.textContent = `針對本次 ${wc} 題錯題`; }
+  document.getElementById("result-qs").innerHTML = practiceQs.map((q, qi) => {
+    const chosen = answers[qi]; const ok = chosen === q.answer;
+    return `<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:11px;font-family:var(--mono);color:var(--text3);">Q${q.num}</span>
+        <span style="font-size:12px;padding:1px 8px;border-radius:99px;font-weight:600;background:${ok?"var(--accent-light)":"var(--danger-light)"};color:${ok?"var(--accent)":"var(--danger)"};">${ok?"✓ 正確":"✗ 錯誤"}</span>
+      </div>
+      <div style="font-size:13px;line-height:1.6;margin-bottom:7px;">${q.text}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:7px;">正確答案：<strong style="color:var(--accent)">${OPTS[q.answer]}. ${q.options[q.answer]}</strong>${chosen!==undefined&&!ok?`　你的答案：<span style="color:var(--danger)">${OPTS[chosen]}. ${q.options[chosen]}</span>`:""}</div>
+      <div class="explain-box"><div class="explain-tag">AI 詳解</div>${q.explain}</div>
+    </div>`;
+  }).join('');
+  document.getElementById("submit-row").style.display = "none";
+  sShowV("sv-result");
+};
+
+// 成績記錄
+async function renderRecord() {
+  const el = document.getElementById("my-hist");
+  const sumEl = document.getElementById("my-stat-summary");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const snap = await getDocs(query(collection(db, "results"), where("uid", "==", currentUser.uid), orderBy("createdAt", "desc")));
+    const records = snap.docs.map(d => d.data());
+    if (!records.length) { sumEl.innerHTML = ''; el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無記錄，快去練習吧！</div>'; return; }
+    const rec10 = records.filter(r => r.mode !== "all");
+    const recAll = records.filter(r => r.mode === "all");
+    const avg10 = rec10.length ? Math.round(rec10.reduce((s,r)=>s+r.score,0)/rec10.length) : null;
+    const avgAll = recAll.length ? Math.round(recAll.reduce((s,r)=>s+r.score,0)/recAll.length) : null;
+    sumEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;text-align:center;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">10題練習</div>
+        <div style="font-size:26px;font-weight:700;font-family:var(--mono);color:var(--blue);">${rec10.length}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">次練習</div>
+        <div style="font-size:20px;font-weight:600;font-family:var(--mono);color:${avg10>=80?"var(--accent)":avg10>=60?"var(--warn)":"var(--danger)"};margin-top:6px;">${avg10 !== null ? avg10+"分" : "—"}</div>
+        <div style="font-size:11px;color:var(--text3);">平均成績</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;text-align:center;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">考全部</div>
+        <div style="font-size:26px;font-weight:700;font-family:var(--mono);color:var(--accent);">${recAll.length}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">次小考</div>
+        <div style="font-size:20px;font-weight:600;font-family:var(--mono);color:${avgAll>=80?"var(--accent)":avgAll>=60?"var(--warn)":"var(--danger)"};margin-top:6px;">${avgAll !== null ? avgAll+"分" : "—"}</div>
+        <div style="font-size:11px;color:var(--text3);">平均成績</div>
+      </div>
+    </div>`;
+    el.innerHTML = records.map(r => {
+      const modeLabel = r.mode === "all" ? "📋 考全部" : "🔄 10題練習";
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1"><div style="font-size:13px;font-weight:500;">${r.quizName}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${modeLabel}・答對 ${r.correct}/${r.total}</div></div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:${r.score>=80?"var(--accent)":r.score>=60?"var(--warn)":"var(--danger)"};">${r.score}分</div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+</script>
+</body>
+</html>

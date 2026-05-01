@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老師端 - 國貿丙檢練習平台</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.page-wrap{display:flex;flex-direction:column;height:100vh;}
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">國貿丙檢 <span>老師端</span></div>
+    <div class="user-pill">
+      <div class="avatar">師</div>
+      <span id="teacher-name"></span>
+    </div>
+  </div>
+
+  <!-- 水平導覽列 -->
+  <div class="navbar">
+
+    <!-- 命題系統 -->
+    <div class="nav-group" id="ng-quiz">
+      <button class="nav-group-btn" onclick="toggleGroup('quiz')">📝 命題系統 ▾</button>
+      <div class="nav-dropdown">
+        <button class="nav-sub-item" onclick="showPanel('upload');closeGroups()">📤 上傳題目</button>
+        <button class="nav-sub-item" onclick="showPanel('review');closeGroups()">🔍 審核題目</button>
+        <button class="nav-sub-item" onclick="showPanel('published');closeGroups()">📋 已發布題卷</button>
+      </div>
+    </div>
+
+    <div class="nav-divider-v"></div>
+
+    <!-- 會員系統 -->
+    <div class="nav-group" id="ng-member">
+      <button class="nav-group-btn" onclick="toggleGroup('member')">👥 會員系統 ▾</button>
+      <div class="nav-dropdown">
+        <button class="nav-sub-item" onclick="showPanel('stu-list');closeGroups()">📋 學生名單</button>
+        <button class="nav-sub-item" onclick="showPanel('stu-pending');closeGroups()">⏳ 待審核</button>
+        <button class="nav-sub-item" onclick="showPanel('stu-public');closeGroups()">💼 社會人士</button>
+      </div>
+    </div>
+
+    <div class="nav-divider-v"></div>
+
+    <!-- 成績系統 -->
+    <div class="nav-group" id="ng-score">
+      <button class="nav-group-btn" onclick="toggleGroup('score')">📊 成績系統 ▾</button>
+      <div class="nav-dropdown">
+        <button class="nav-sub-item" onclick="showPanel('scores');closeGroups()">🏆 成績冊</button>
+        <button class="nav-sub-item" onclick="showPanel('stats');closeGroups()">📉 錯題統計</button>
+      </div>
+    </div>
+
+    <button class="nav-logout" onclick="doLogout()">🚪 登出</button>
+  </div>
+
+  <!-- 主內容 -->
+  <div class="main-content">
+
+    <!-- 預設提示 -->
+    <div class="panel on" id="panel-home" style="text-align:center;padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:16px;">👋</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;">歡迎，老師！</div>
+      <div style="font-size:13px;color:var(--text3);">請從上方選單選擇功能</div>
+    </div>
+
+    <!-- 命題系統：上傳題目 -->
+    <div class="panel" id="panel-upload">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">上傳題目</div><div class="card-sub">選擇章節與班級，預覽確認後發布</div></div></div>
+        <div class="form-row"><label class="form-label">題卷名稱</label><input class="form-input" id="qname" placeholder="例：Ch17 匯票與貨運單據 第一回"></div>
+        <div class="form-row"><label class="form-label">指定班級</label>
+          <select class="form-select" id="qclass">
+            <option value="">— 選擇班級 —</option>
+            <option>201</option><option>202</option><option>203</option><option>全部班級</option>
+          </select>
+        </div>
+        <div class="form-row"><label class="form-label">選擇章節</label>
+          <select class="form-select" id="qchapter">
+            <option value="">— 選擇章節 —</option>
+            <option>Ch17 匯票與貨運單據</option>
+            <option>Ch18 進出口結匯</option>
+          </select>
+        </div>
+        <div style="text-align:right;margin-top:4px;">
+          <button class="btn btn-primary" onclick="previewQuiz()">預覽題目與詳解 →</button>
+        </div>
+        <div id="ustatus" style="display:none;margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- 命題系統：審核題目 -->
+    <div class="panel" id="panel-review">
+      <div id="no-pending" class="card" style="text-align:center;padding:32px;color:var(--text3);">
+        目前沒有待審核的題卷<br><span style="font-size:12px;">請先至「上傳題目」選擇章節</span>
+      </div>
+      <div id="has-pending" style="display:none;">
+        <div class="pending-notice">⚠️ 請確認以下題目與詳解正確無誤，確認後學生才能看到。</div>
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title" id="prev-title"></div><div class="card-sub" id="prev-meta"></div></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" onclick="cancelPending()">捨棄</button>
+              <button class="btn btn-primary btn-sm" onclick="publishQuiz()">確認發布 →</button>
+            </div>
+          </div>
+          <div id="prev-qs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 命題系統：已發布題卷 -->
+    <div class="panel" id="panel-published">
+      <div class="card">
+        <div class="card-head"><div class="card-title">已發布題卷</div></div>
+        <div id="published-list"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無已發布題卷</div></div>
+      </div>
+    </div>
+
+    <!-- 會員系統：學生名單 -->
+    <div class="panel" id="panel-stu-list">
+      <div class="filter-bar">
+        <span class="filter-label">班級：</span>
+        <button class="filter-btn on" onclick="filterStu(this,'')">全部</button>
+        <button class="filter-btn" onclick="filterStu(this,'201')">201</button>
+        <button class="filter-btn" onclick="filterStu(this,'202')">202</button>
+        <button class="filter-btn" onclick="filterStu(this,'203')">203</button>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head">
+          <div class="card-title">學生名單</div>
+          <div id="stu-count" style="font-size:12px;color:var(--text3);"></div>
+        </div>
+        <div id="stu-list-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
+    <!-- 會員系統：待審核 -->
+    <div class="panel" id="panel-stu-pending">
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head">
+          <div class="card-title">待審核學生</div>
+          <div id="pending-count" style="font-size:12px;color:var(--text3);"></div>
+        </div>
+        <div id="pending-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
+    <!-- 會員系統：社會人士 -->
+    <div class="panel" id="panel-stu-public">
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head">
+          <div class="card-title">社會人士名單</div>
+          <div id="public-count" style="font-size:12px;color:var(--text3);"></div>
+        </div>
+        <div id="public-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
+    <!-- 成績系統：成績冊 -->
+    <div class="panel" id="panel-scores">
+      <div class="filter-bar">
+        <span class="filter-label">班級：</span>
+        <button class="filter-btn on" id="sc-btn-201" onclick="pickScoreClass(this,'201')">201</button>
+        <button class="filter-btn" id="sc-btn-202" onclick="pickScoreClass(this,'202')">202</button>
+        <button class="filter-btn" id="sc-btn-203" onclick="pickScoreClass(this,'203')">203</button>
+        <button class="filter-btn" onclick="pickScoreClass(this,'public')" style="margin-left:12px;border-style:dashed;">💼 社會人士</button>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head"><div class="card-title">成績冊</div><div class="card-sub">考全部・10題練習各別統計</div></div>
+        <div id="scores-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
+    <!-- 成績系統：錯題統計 -->
+    <div class="panel" id="panel-stats">
+      <div class="filter-bar">
+        <span class="filter-label">班級：</span>
+        <button class="filter-btn on" onclick="pickStatClass(this,'201')">201</button>
+        <button class="filter-btn" onclick="pickStatClass(this,'202')">202</button>
+        <button class="filter-btn" onclick="pickStatClass(this,'203')">203</button>
+      </div>
+      <div class="filter-bar" id="stat-chapter-bar" style="display:none;">
+        <span class="filter-label">章節：</span>
+      </div>
+      <div class="stat-grid" id="stat4"></div>
+      <div class="card" style="padding:14px 16px;">
+        <table class="q-table"><thead><tr>
+          <th style="width:36px;">題號</th><th>題目</th>
+          <th style="width:70px;text-align:right;">答錯人數</th>
+          <th style="width:130px;">錯誤率</th>
+          <th style="width:48px;text-align:right;">等級</th>
+        </tr></thead><tbody id="stat-tbody"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs,
+  query, where, orderBy, updateDoc, serverTimestamp, deleteDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig, TEACHER_EMAIL, CLASSES } from "./js/config.js";
+import { BUILTIN_BANKS } from "./js/questions.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const OPTS = ['A','B','C','D'];
+let publishedQuizzes = [];
+let stuFilterClass = '';
+let statClass = '201';
+let selectedStatQuiz = '';
+
+// ======== 登入驗證 ========
+onAuthStateChanged(auth, async (user) => {
+  if (!user || user.email !== TEACHER_EMAIL) {
+    window.location.href = "index.html"; return;
+  }
+  document.getElementById("teacher-name").textContent = user.displayName || user.email;
+  await loadPublishedQuizzes();
+});
+
+window.doLogout = async () => { await signOut(auth); window.location.href = "index.html"; };
+
+// ======== 導覽 ========
+window.toggleGroup = (id) => {
+  const el = document.getElementById("ng-" + id);
+  const isOpen = el.classList.contains("open");
+  closeGroups();
+  if (!isOpen) el.classList.add("open");
+};
+window.closeGroups = () => {
+  document.querySelectorAll(".nav-group").forEach(g => g.classList.remove("open"));
+};
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".nav-group")) closeGroups();
+});
+
+window.showPanel = (id) => {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("on"));
+  document.getElementById("panel-" + id).classList.add("on");
+  // 載入對應資料
+  if (id === "published") renderPublished();
+  if (id === "stu-list") renderStuList();
+  if (id === "stu-pending") renderPending();
+  if (id === "stu-public") renderPublicList();
+  if (id === "scores") renderScores();
+  if (id === "stats") renderStats();
+  if (id === "review") renderReview();
+};
+
+// ======== 命題系統 ========
+window.previewQuiz = () => {
+  const name = document.getElementById("qname").value.trim();
+  const cls = document.getElementById("qclass").value;
+  const chapter = document.getElementById("qchapter").value;
+  if (!name) { alert("請填寫題卷名稱"); return; }
+  if (!cls) { alert("請選擇班級"); return; }
+  if (!chapter) { alert("請選擇章節"); return; }
+  const questions = BUILTIN_BANKS[chapter];
+  if (!questions) { alert("找不到題庫"); return; }
+  window._pendingQuiz = { name, cls, questions };
+  showPanel("review");
+};
+
+function renderReview() {
+  const pq = window._pendingQuiz;
+  if (!pq) {
+    document.getElementById("no-pending").style.display = "block";
+    document.getElementById("has-pending").style.display = "none";
+    return;
+  }
+  document.getElementById("no-pending").style.display = "none";
+  document.getElementById("has-pending").style.display = "block";
+  document.getElementById("prev-title").textContent = "📋 " + pq.name;
+  document.getElementById("prev-meta").textContent = pq.cls + "・" + pq.questions.length + " 題・待確認";
+  document.getElementById("prev-qs").innerHTML = pq.questions.map((q, i) => `
+    <div class="q-preview">
+      <div class="q-prev-head"><div class="q-prev-num">Q${q.num || i+1}</div><div class="q-prev-text">${q.text}</div></div>
+      <div class="q-opts-grid">${(q.options||[]).map((o,oi) => `<div class="q-opt ${oi===q.answer?'ans':''}">${OPTS[oi]}. ${o}</div>`).join('')}</div>
+      <div class="explain-box"><div class="explain-tag">AI 詳解</div>${q.explain}</div>
+    </div>`).join('');
+}
+
+window.cancelPending = () => { window._pendingQuiz = null; renderReview(); };
+
+window.publishQuiz = async () => {
+  const pq = window._pendingQuiz;
+  if (!pq) return;
+  try {
+    await addDoc(collection(db, "quizzes"), {
+      name: pq.name, cls: pq.cls, questions: pq.questions,
+      status: "published", createdBy: auth.currentUser.uid,
+      createdAt: serverTimestamp()
+    });
+    window._pendingQuiz = null;
+    alert("✓ 題卷已發布！");
+    await loadPublishedQuizzes();
+    showPanel("published");
+  } catch(e) { alert("發布失敗：" + e.message); }
+};
+
+async function loadPublishedQuizzes() {
+  const snap = await getDocs(query(collection(db, "quizzes"), where("status", "==", "published")));
+  publishedQuizzes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+function renderPublished() {
+  const el = document.getElementById("published-list");
+  if (!publishedQuizzes.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無已發布題卷</div>'; return; }
+  el.innerHTML = publishedQuizzes.map(q => `
+    <div class="quiz-item">
+      <div class="quiz-icon">📋</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:500;">${q.name}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px;">${q.cls}・${q.questions.length} 題</div></div>
+      <span class="badge badge-lo">已發布</span>
+    </div>`).join('');
+}
+
+// ======== 會員系統 ========
+window.filterStu = (btn, cls) => {
+  document.querySelectorAll("#panel-stu-list .filter-btn").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on"); stuFilterClass = cls; renderStuList();
+};
+
+async function renderStuList() {
+  const el = document.getElementById("stu-list-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const q = stuFilterClass
+      ? query(collection(db, "users"), where("role", "==", "student"), where("class", "==", stuFilterClass))
+      : query(collection(db, "users"), where("role", "==", "student"));
+    const snap = await getDocs(q);
+    const students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => s.status === "active")
+      .sort((a, b) => (a.class || '').localeCompare(b.class || '') || (a.name || '').localeCompare(b.name || ''));
+    document.getElementById("stu-count").textContent = `共 ${students.length} 位`;
+    if (!students.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無學生</div>'; return; }
+    el.innerHTML = `<table class="q-table" style="width:100%">
+      <thead><tr><th>姓名</th><th>班級</th><th>學校</th><th>Email</th><th>註冊時間</th><th style="text-align:center;">操作</th></tr></thead>
+      <tbody>${students.map(s => {
+        const date = s.createdAt?.toDate ? s.createdAt.toDate().toLocaleDateString('zh-TW') : '—';
+        return `<tr>
+          <td style="font-weight:500;">${s.name || '—'}</td>
+          <td><span style="background:var(--surface2);padding:2px 8px;border-radius:4px;font-size:12px;">${s.class || '—'}</span></td>
+          <td style="font-size:12px;color:var(--text2);">${s.school || '—'}</td>
+          <td style="font-size:12px;color:var(--text2);">${s.email || '—'}</td>
+          <td style="font-size:12px;color:var(--text3);">${date}</td>
+          <td style="text-align:center;">
+            <button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="suspendUser('${s.id}','${s.name}')">停權</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+
+async function renderPending() {
+  const el = document.getElementById("pending-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const snap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("status", "==", "pending")));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById("pending-count").textContent = `共 ${list.length} 位待審核`;
+    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">目前沒有待審核學生 ✓</div>'; return; }
+    el.innerHTML = `<table class="q-table" style="width:100%">
+      <thead><tr><th>姓名</th><th>班級</th><th>學校</th><th>Email</th><th>申請時間</th><th style="text-align:center;">操作</th></tr></thead>
+      <tbody>${list.map(s => {
+        const date = s.createdAt?.toDate ? s.createdAt.toDate().toLocaleDateString('zh-TW') : '—';
+        return `<tr>
+          <td style="font-weight:500;">${s.name || '—'}</td>
+          <td><span style="background:var(--warn-light);padding:2px 8px;border-radius:4px;font-size:12px;color:var(--warn);">${s.class || '—'}</span></td>
+          <td style="font-size:12px;color:var(--text2);">${s.school || '—'}</td>
+          <td style="font-size:12px;color:var(--text2);">${s.email || '—'}</td>
+          <td style="font-size:12px;color:var(--text3);">${date}</td>
+          <td style="text-align:center;display:flex;gap:6px;justify-content:center;">
+            <button class="btn btn-sm btn-primary" onclick="approveUser('${s.id}','${s.name}')">✓ 核准</button>
+            <button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="rejectUser('${s.id}','${s.name}')">✗ 拒絕</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+
+window.approveUser = async (uid, name) => {
+  if (!confirm(`確定核准「${name}」的申請？`)) return;
+  await updateDoc(doc(db, "users", uid), { status: "active", approvedAt: serverTimestamp(), approvedBy: auth.currentUser.uid });
+  alert(`✓ 已核准 ${name}`);
+  renderPending();
+};
+
+window.rejectUser = async (uid, name) => {
+  if (!confirm(`確定拒絕「${name}」的申請？這將刪除其帳號資料。`)) return;
+  await deleteDoc(doc(db, "users", uid));
+  alert(`已拒絕 ${name} 的申請`);
+  renderPending();
+};
+
+window.suspendUser = async (uid, name) => {
+  if (!confirm(`確定停權「${name}」？停權後該學生將無法登入。`)) return;
+  await updateDoc(doc(db, "users", uid), { status: "suspended" });
+  alert(`已停權 ${name}`);
+  renderStuList();
+};
+
+async function renderPublicList() {
+  const el = document.getElementById("public-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const snap = await getDocs(query(collection(db, "users"), where("role", "==", "public")));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    document.getElementById("public-count").textContent = `共 ${list.length} 位`;
+    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無社會人士</div>'; return; }
+    el.innerHTML = `<table class="q-table" style="width:100%">
+      <thead><tr><th>姓名</th><th>職業</th><th>報考目的</th><th>Email</th><th>方案</th><th>註冊時間</th></tr></thead>
+      <tbody>${list.map(s => {
+        const date = s.createdAt?.toDate ? s.createdAt.toDate().toLocaleDateString('zh-TW') : '—';
+        return `<tr>
+          <td style="font-weight:500;">${s.name || '—'}</td>
+          <td style="font-size:12px;">${s.occupation || '—'}</td>
+          <td style="font-size:12px;color:var(--text2);">${s.purpose || '—'}</td>
+          <td style="font-size:12px;color:var(--text2);">${s.email || '—'}</td>
+          <td><span class="badge ${s.plan === 'paid' ? 'badge-blue' : 'badge-gray'}">${s.plan === 'paid' ? '付費' : '免費'}</span></td>
+          <td style="font-size:12px;color:var(--text3);">${date}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+
+// ======== 成績系統 ========
+let scoreClass = '201';
+window.pickScoreClass = async (btn, cls) => {
+  document.querySelectorAll("#panel-scores .filter-btn").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on"); scoreClass = cls; renderScores();
+};
+
+async function renderScores() {
+  const el = document.getElementById("scores-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const q = scoreClass === 'public'
+      ? query(collection(db, "student_stats"), where("role", "==", "public"))
+      : query(collection(db, "student_stats"), where("class", "==", scoreClass));
+    const snap = await getDocs(q);
+    const list = snap.docs.map(d => d.data()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無成績記錄</div>'; return; }
+    el.innerHTML = `<table class="q-table" style="width:100%">
+      <thead><tr><th>姓名</th>${scoreClass !== 'public' ? '<th>班級</th>' : '<th>職業</th>'}<th style="text-align:center;">10題練習</th><th style="text-align:center;">考全部</th><th>題卷</th></tr></thead>
+      <tbody>${list.map(s => {
+        const avg10 = s.practice10Count ? Math.round(s.practice10Total / s.practice10Count) : null;
+        const avgAll = s.examAllCount ? Math.round(s.examAllTotal / s.examAllCount) : null;
+        const c = (score) => score >= 80 ? 'var(--accent)' : score >= 60 ? 'var(--warn)' : 'var(--danger)';
+        return `<tr>
+          <td style="font-weight:500;">${s.name || '—'}</td>
+          <td><span style="background:var(--surface2);padding:2px 8px;border-radius:4px;font-size:12px;">${scoreClass !== 'public' ? (s.class || '—') : (s.occupation || '—')}</span></td>
+          <td style="text-align:center;">${s.practice10Count ? `${s.practice10Count}次 / <span style="font-weight:600;color:${c(avg10)}">${avg10}分</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+          <td style="text-align:center;">${s.examAllCount ? `${s.examAllCount}次 / <span style="font-weight:600;color:${c(avgAll)}">${avgAll}分</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+          <td style="font-size:12px;color:var(--text3);">${s.quizName || '—'}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+
+window.pickStatClass = (btn, cls) => {
+  document.querySelectorAll("#panel-stats .filter-btn").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on"); statClass = cls; selectedStatQuiz = ''; renderStats();
+};
+
+window.pickStatQuiz = (btn, quizId) => {
+  document.querySelectorAll(".chapter-stat-btn").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on"); selectedStatQuiz = quizId; renderStatsTable();
+};
+
+async function renderStats() {
+  document.getElementById("stat-tbody").innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">載入中...</td></tr>';
+  document.getElementById("stat4").innerHTML = '';
+  const snap = await getDocs(query(collection(db, "class_errors"), where("class", "==", statClass)));
+  if (snap.empty) {
+    document.getElementById("stat-chapter-bar").style.display = "none";
+    document.getElementById("stat-tbody").innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">該班尚無「考全部」記錄</td></tr>';
+    return;
+  }
+  window._statDocs = snap.docs;
+  const bar = document.getElementById("stat-chapter-bar");
+  bar.style.display = "flex";
+  const btns = [{ id: '', name: '全部' }, ...snap.docs.map(d => ({ id: d.id, name: d.data().quizName || d.id }))];
+  bar.innerHTML = `<span class="filter-label">章節：</span>` + btns.map(b =>
+    `<button class="filter-btn chapter-stat-btn ${b.id === selectedStatQuiz ? 'on' : ''}" onclick="pickStatQuiz(this,'${b.id}')">${b.name}</button>`
+  ).join('');
+  renderStatsTable();
+}
+
+function renderStatsTable() {
+  const docs = window._statDocs || [];
+  const filteredDocs = selectedStatQuiz ? docs.filter(d => d.id === selectedStatQuiz) : docs;
+  let totalExams = 0;
+  const allErrors = {};
+  filteredDocs.forEach(d => {
+    const data = d.data();
+    totalExams += data.totalExams || 0;
+    Object.entries(data.questionErrors || {}).forEach(([k, v]) => {
+      if (!allErrors[k]) allErrors[k] = { ...v };
+      else { allErrors[k].wrong += v.wrong; allErrors[k].total += v.total; }
+    });
+  });
+  const entries = Object.values(allErrors);
+  if (!entries.length) { document.getElementById("stat4").innerHTML = ''; document.getElementById("stat-tbody").innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">尚無錯題資料</td></tr>'; return; }
+  entries.sort((a, b) => a.num - b.num);
+  const avgCorrect = (entries.reduce((s, e) => s + (e.total - e.wrong) / e.total, 0) / entries.length * 100).toFixed(1);
+  const hardest = entries.reduce((m, e) => (e.wrong/e.total > (m.wrong||0)/(m.total||1) ? e : m), entries[0]);
+  document.getElementById("stat4").innerHTML = `
+    <div class="stat-box"><div class="stat-n">${totalExams}</div><div class="stat-l">考全部次數</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--accent)">${avgCorrect}</div><div class="stat-l">平均答對率%</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--warn)">${entries.length}</div><div class="stat-l">統計題數</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--danger)">Q${hardest?.num || '—'}</div><div class="stat-l">最難題</div></div>`;
+  document.getElementById("stat-tbody").innerHTML = entries.map(e => {
+    const pct = Math.round(e.wrong / e.total * 100);
+    const c = pct>=60?'#c0392b':pct>=40?'#c8a000':'#2d5a3d';
+    const bc = pct>=60?'badge-hi':pct>=40?'badge-md':'badge-lo';
+    const bg = pct>=60?'background:#fff8f8':pct>=40?'background:#fffdf0':'';
+    return `<tr style="${bg}">
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text3);">Q${e.num}</td>
+      <td style="font-size:13px;">${e.text}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:600;color:${c};">${e.wrong} 人</td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${c}"></div></div>
+      <span style="font-size:12px;font-family:var(--mono);font-weight:700;color:${c};min-width:36px;">${pct}%</span></div></td>
+      <td style="text-align:right;"><span class="badge ${bc}">${pct>=60?'高':pct>=40?'中':'低'}</span></td>
+    </tr>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isTeacher() {
+      return request.auth != null && request.auth.token.email == "istevenyu@gmail.com";
+    }
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // 用戶資料
+    match /users/{uid} {
+      allow read: if isLoggedIn();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isTeacher();
+      allow delete: if isTeacher();
+    }
+
+    // 題卷
+    match /quizzes/{quizId} {
+      allow read: if isLoggedIn() && (isTeacher() || resource.data.status == 'published');
+      allow write: if isTeacher();
+    }
+
+    // 練習記錄
+    match /results/{resultId} {
+      allow create: if isLoggedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isLoggedIn() && (isTeacher() || resource.data.uid == request.auth.uid);
+      allow update, delete: if isTeacher();
+    }
+
+    // 個人統計
+    match /student_stats/{statId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn();
+    }
+
+    // 班級錯題統計
+    match /class_errors/{errId} {
+      allow read, write: if isLoggedIn();
+    }
+  }
+}

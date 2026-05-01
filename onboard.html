@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>完成設定 - 國貿丙檢練習平台</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg);">
+  <div class="topbar">
+    <div class="logo">國貿丙檢 <span>練習平台</span></div>
+  </div>
+
+  <div class="center-wrap">
+    <div class="onboard-box">
+
+      <!-- Step 1: 選身份 -->
+      <div id="step-1">
+        <div style="font-size:24px;margin-bottom:10px;">👋</div>
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px;">歡迎！請選擇你的身份</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:22px;">設定完成後即可開始練習</div>
+        <div class="identity-grid">
+          <div class="identity-card" onclick="selectIdentity('student')">
+            <div class="identity-icon">🎓</div>
+            <div class="identity-label">學生</div>
+            <div class="identity-desc">在校學生<br>需老師審核</div>
+          </div>
+          <div class="identity-card" onclick="selectIdentity('public')">
+            <div class="identity-icon">💼</div>
+            <div class="identity-label">社會人士</div>
+            <div class="identity-desc">自行備考<br>立即可用</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2a: 學生資料 -->
+      <div id="step-2-student" style="display:none;">
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px;">學生基本資料</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:20px;">填寫完成後由老師審核，通過後即可練習</div>
+        <div class="form-row">
+          <label class="form-label">真實姓名 *</label>
+          <input class="form-input" id="s-name" placeholder="請輸入真實姓名">
+        </div>
+        <div class="form-row">
+          <label class="form-label">學校名稱</label>
+          <input class="form-input" id="s-school" placeholder="例：國立台北商業大學">
+        </div>
+        <div class="form-row">
+          <label class="form-label">班級 *</label>
+          <div class="class-grid">
+            <div class="class-option" id="cls-201" onclick="selectClass('201')">201</div>
+            <div class="class-option" id="cls-202" onclick="selectClass('202')">202</div>
+            <div class="class-option" id="cls-203" onclick="selectClass('203')">203</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">學號（選填）</label>
+          <input class="form-input" id="s-studentid" placeholder="選填">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn" onclick="backToStep1()">← 返回</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="submitStudent()">送出申請，等待審核 →</button>
+        </div>
+      </div>
+
+      <!-- Step 2b: 社會人士資料 -->
+      <div id="step-2-public" style="display:none;">
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px;">社會人士基本資料</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:20px;">填寫完成後立即可以開始練習</div>
+        <div class="form-row">
+          <label class="form-label">真實姓名 *</label>
+          <input class="form-input" id="p-name" placeholder="請輸入真實姓名">
+        </div>
+        <div class="form-row">
+          <label class="form-label">職業 *</label>
+          <select class="form-select" id="p-occupation">
+            <option value="">— 請選擇 —</option>
+            <option>上班族</option>
+            <option>待業中</option>
+            <option>自營業者</option>
+            <option>學生（非在校）</option>
+            <option>其他</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">報考目的 *</label>
+          <select class="form-select" id="p-purpose">
+            <option value="">— 請選擇 —</option>
+            <option>應試準備（丙級檢定）</option>
+            <option>自我進修</option>
+            <option>工作需要</option>
+            <option>其他</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn" onclick="backToStep1()">← 返回</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="submitPublic()">完成設定，開始練習 →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig } from "./js/config.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+let currentUser = null;
+let selectedRole = null;
+let selectedClass = null;
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) { window.location.href = "index.html"; return; }
+  currentUser = user;
+});
+
+window.selectIdentity = (role) => {
+  selectedRole = role;
+  document.getElementById("step-1").style.display = "none";
+  document.getElementById("step-2-student").style.display = role === "student" ? "block" : "none";
+  document.getElementById("step-2-public").style.display = role === "public" ? "block" : "none";
+};
+
+window.backToStep1 = () => {
+  document.getElementById("step-1").style.display = "block";
+  document.getElementById("step-2-student").style.display = "none";
+  document.getElementById("step-2-public").style.display = "none";
+};
+
+window.selectClass = (cls) => {
+  selectedClass = cls;
+  document.querySelectorAll(".class-option").forEach(e => e.classList.remove("on"));
+  document.getElementById("cls-" + cls).classList.add("on");
+};
+
+window.submitStudent = async () => {
+  const name = document.getElementById("s-name").value.trim();
+  const school = document.getElementById("s-school").value.trim();
+  const studentId = document.getElementById("s-studentid").value.trim();
+  if (!name) { alert("請填寫姓名"); return; }
+  if (!selectedClass) { alert("請選擇班級"); return; }
+  try {
+    await setDoc(doc(db, "users", currentUser.uid), {
+      name, school, studentId,
+      class: selectedClass,
+      email: currentUser.email,
+      role: "student",
+      status: "pending", // 等待老師審核
+      plan: "free",
+      createdAt: serverTimestamp()
+    });
+    window.location.href = "pending.html";
+  } catch(e) { alert("儲存失敗：" + e.message); }
+};
+
+window.submitPublic = async () => {
+  const name = document.getElementById("p-name").value.trim();
+  const occupation = document.getElementById("p-occupation").value;
+  const purpose = document.getElementById("p-purpose").value;
+  if (!name) { alert("請填寫姓名"); return; }
+  if (!occupation) { alert("請選擇職業"); return; }
+  if (!purpose) { alert("請選擇報考目的"); return; }
+  try {
+    await setDoc(doc(db, "users", currentUser.uid), {
+      name, occupation, purpose,
+      email: currentUser.email,
+      role: "public",
+      status: "active", // 社青直接通過
+      plan: "free",
+      createdAt: serverTimestamp()
+    });
+    window.location.href = "student.html";
+  } catch(e) { alert("儲存失敗：" + e.message); }
+};
+</script>
+</body>
+</html>
