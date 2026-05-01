@@ -29,37 +29,22 @@
   <div class="navbar">
 
     <!-- 命題系統 -->
-    <div class="nav-group" id="ng-quiz">
-      <button class="nav-group-btn" onclick="toggleGroup('quiz')">📝 命題系統 ▾</button>
-      <div class="nav-dropdown">
-        <button class="nav-sub-item" onclick="showPanel('upload');closeGroups()">📤 上傳題目</button>
-        <button class="nav-sub-item" onclick="showPanel('review');closeGroups()">🔍 審核題目</button>
-        <button class="nav-sub-item" onclick="showPanel('published');closeGroups()">📋 已發布題卷</button>
-      </div>
-    </div>
+    <button class="nav-group-btn" onclick="showPanel('upload')" id="nb-upload">📤 上傳題目</button>
+    <button class="nav-group-btn" onclick="showPanel('review')" id="nb-review">🔍 審核題目</button>
+    <button class="nav-group-btn" onclick="showPanel('published')" id="nb-published">📋 已發布</button>
 
     <div class="nav-divider-v"></div>
 
     <!-- 會員系統 -->
-    <div class="nav-group" id="ng-member">
-      <button class="nav-group-btn" onclick="toggleGroup('member')">👥 會員系統 ▾</button>
-      <div class="nav-dropdown">
-        <button class="nav-sub-item" onclick="showPanel('stu-list');closeGroups()">📋 學生名單</button>
-        <button class="nav-sub-item" onclick="showPanel('stu-pending');closeGroups()">⏳ 待審核</button>
-        <button class="nav-sub-item" onclick="showPanel('stu-public');closeGroups()">💼 社會人士</button>
-      </div>
-    </div>
+    <button class="nav-group-btn" onclick="showPanel('stu-list')" id="nb-stu-list">👥 學生名單</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-pending')" id="nb-stu-pending">⏳ 待審核</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stu-public">💼 社會人士</button>
 
     <div class="nav-divider-v"></div>
 
     <!-- 成績系統 -->
-    <div class="nav-group" id="ng-score">
-      <button class="nav-group-btn" onclick="toggleGroup('score')">📊 成績系統 ▾</button>
-      <div class="nav-dropdown">
-        <button class="nav-sub-item" onclick="showPanel('scores');closeGroups()">🏆 成績冊</button>
-        <button class="nav-sub-item" onclick="showPanel('stats');closeGroups()">📉 錯題統計</button>
-      </div>
-    </div>
+    <button class="nav-group-btn" onclick="showPanel('scores')" id="nb-scores">🏆 成績冊</button>
+    <button class="nav-group-btn" onclick="showPanel('stats')" id="nb-stats">📉 錯題統計</button>
 
     <button class="nav-logout" onclick="doLogout()">🚪 登出</button>
   </div>
@@ -261,6 +246,9 @@ document.addEventListener("click", (e) => {
 window.showPanel = (id) => {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("on"));
   document.getElementById("panel-" + id).classList.add("on");
+  document.querySelectorAll(".nav-group-btn").forEach(b => b.classList.remove("on"));
+  const nb = document.getElementById("nb-" + id);
+  if (nb) nb.classList.add("on");
   // 載入對應資料
   if (id === "published") renderPublished();
   if (id === "stu-list") renderStuList();
