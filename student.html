@@ -125,6 +125,7 @@ let answers = {};
 let submitted = false;
 let wrongQs = [];
 let lastPractice10Indices = [];
+let isSmallTestMode = false;
 
 onAuthStateChanged(auth, async (user) => {
   // 開發者模式
@@ -194,14 +195,34 @@ function renderSQuizList() {
     <div class="quiz-item" onclick="pickQuiz('${q.id}')">
       <div class="quiz-icon">📋</div>
       <div style="flex:1"><div style="font-size:14px;font-weight:500;">${q.name}</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:2px;">${q.cls}・${q.questions.length} 題</div></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px;">${q.cls}・${q.questions.length} 題${q.quizType === "small-test" ? `・🧪 ${q.durationMin || 0} 分鐘` : ''}</div></div>
       <div style="color:var(--text3);font-size:20px;">›</div>
     </div>`).join('');
 }
 
-window.pickQuiz = (id) => {
+window.pickQuiz = async (id) => {
   curQuiz = publishedQuizzes.find(q => q.id === id);
   if (!curQuiz) return;
+  if (curQuiz.quizType === "small-test") {
+    const attemptSnap = await getDocs(query(
+      collection(db, "results"),
+      where("quizId", "==", curQuiz.id),
+      where("uid", "==", currentUser.uid),
+      where("mode", "==", "small-test")
+    ));
+    if (!attemptSnap.empty) {
+      alert("此份小考你已作答過，同一位學生只能作答一次。");
+      return;
+    }
+    isSmallTestMode = true;
+    document.getElementById("mc-10").style.display = "none";
+    document.getElementById("mc-all").style.display = "none";
+    await window.startPractice(null, "small-test");
+    return;
+  }
+  isSmallTestMode = false;
+  document.getElementById("mc-10").style.display = "block";
+  document.getElementById("mc-all").style.display = "block";
   document.getElementById("mode-title").textContent = curQuiz.name;
   document.getElementById("mode-meta").textContent = curQuiz.cls + "・" + curQuiz.questions.length + " 題";
   selMode = 10;
@@ -222,6 +243,12 @@ window.startPractice = (pool, forceMode) => {
   const mode = forceMode || selMode;
   if (mode === "all") {
     practiceQs = [...src].sort(() => Math.random() - .5);
+  } else if (mode === "small-test") {
+    practiceQs = [...src].sort(() => Math.random() - .5).map(q => {
+      const optPairs = (q.options || []).map((opt, idx) => ({ opt, idx })).sort(() => Math.random() - .5);
+      const newAnswer = optPairs.findIndex(p => p.idx === q.answer);
+      return { ...q, options: optPairs.map(p => p.opt), answer: newAnswer };
+    });
   } else {
     const allIdx = src.map((_, i) => i);
     let available = allIdx.filter(i => !lastPractice10Indices.includes(i));
@@ -238,11 +265,13 @@ window.startPractice = (pool, forceMode) => {
 
 window.again10 = () => { selMode = 10; window.startPractice(null, 10); };
 window.againAll = () => { selMode = "all"; window.startPractice(null, "all"); };
-window.doWrongQ = () => { if (wrongQs.length) window.startPractice(wrongQs, 10); };
+window.doWrongQ = () => { if (wrongQs.length && !isSmallTestMode) window.startPractice(wrongQs, 10); };
 
 function renderPractice() {
   document.getElementById("prac-title").textContent = curQuiz.name;
-  document.getElementById("prac-meta").textContent = practiceQs.length + " 題";
+  document.getElementById("prac-meta").textContent = isSmallTestMode
+    ? `${practiceQs.length} 題・限時 ${curQuiz.durationMin || 0} 分鐘`
+    : practiceQs.length + " 題";
   document.getElementById("submit-row").style.display = "block";
   document.getElementById("prog-dots").innerHTML = practiceQs.map((_, i) => `<div class="prog-dot" id="pd-${i}"></div>`).join('');
   document.getElementById("prac-qs").innerHTML = practiceQs.map((q, qi) => `
@@ -291,6 +320,7 @@ window.submitPractice = async () => {
   try {
     await addDoc(collection(db, "results"), {
       uid: currentUser.uid, name: userData.name, class: userData.class || null,
+      studentId: currentUser.uid, studentName: userData.name,
       role: userData.role, occupation: userData.occupation || null,
       quizId: curQuiz.id, quizName: curQuiz.name,
       score: pct, correct, total: practiceQs.length, mode,
@@ -345,6 +375,10 @@ window.submitPractice = async () => {
   const wb = document.getElementById("wrong-btn"); const wd = document.getElementById("wrong-desc");
   if (wc === 0) { wb.style.opacity = ".4"; wb.style.cursor = "default"; wd.textContent = "本次全部答對！"; }
   else { wb.style.opacity = "1"; wb.style.cursor = "pointer"; wd.textContent = `針對本次 ${wc} 題錯題`; }
+  document.querySelectorAll(".action-btn").forEach(btn => btn.style.display = "");
+  if (isSmallTestMode) {
+    document.querySelectorAll(".action-btn:not(.back-btn)").forEach(btn => btn.style.display = "none");
+  }
   document.getElementById("result-qs").innerHTML = practiceQs.map((q, qi) => {
     const chosen = answers[qi]; const ok = chosen === q.answer;
     return `<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
