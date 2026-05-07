@@ -32,6 +32,7 @@
     <button class="nav-group-btn" onclick="showPanel('upload')" id="nb-upload">📤 上傳題目</button>
     <button class="nav-group-btn" onclick="showPanel('review')" id="nb-review">🔍 審核題目</button>
     <button class="nav-group-btn" onclick="showPanel('published')" id="nb-published">📋 已發布</button>
+    <button class="nav-group-btn" onclick="showPanel('small-quiz')" id="nb-small-quiz">🧪 小考製卷</button>
 
     <div class="nav-divider-v"></div>
 
@@ -109,6 +110,35 @@
       <div class="card">
         <div class="card-head"><div class="card-title">已發布題卷</div></div>
         <div id="published-list"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無已發布題卷</div></div>
+      </div>
+    </div>
+
+    <!-- 命題系統：小考製卷 -->
+    <div class="panel" id="panel-small-quiz">
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">小考製卷</div><div class="card-sub">從目前題庫勾選題目並自動抽題，確認後發布給學生</div></div></div>
+        <div class="form-row"><label class="form-label">小考名稱</label><input class="form-input" id="sq-name" placeholder="例：Ch17 小考 01"></div>
+        <div class="form-row"><label class="form-label">指定班級</label>
+          <select class="form-select" id="sq-class">
+            <option value="">— 選擇班級 —</option>
+            <option>201</option><option>202</option><option>203</option><option>全部班級</option>
+          </select>
+        </div>
+        <div class="form-row"><label class="form-label">題數</label><input class="form-input" id="sq-count" type="number" min="1" placeholder="例：10"></div>
+        <div class="form-row"><label class="form-label">考試時間（分鐘）</label><input class="form-input" id="sq-duration" type="number" min="1" placeholder="例：20"></div>
+        <div class="form-row"><label class="form-label">可抽題題庫（可複選）</label></div>
+        <div id="sq-bank-list" style="display:grid;gap:8px;"></div>
+        <div style="text-align:right;margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn" onclick="clearSmallQuizDraft()">清除</button>
+          <button class="btn btn-primary" onclick="generateSmallQuiz()">產生小考預覽 →</button>
+        </div>
+      </div>
+      <div class="card" id="sq-preview-card" style="display:none;">
+        <div class="card-head">
+          <div><div class="card-title" id="sq-prev-title">小考預覽</div><div class="card-sub" id="sq-prev-meta"></div></div>
+          <button class="btn btn-primary btn-sm" onclick="publishSmallQuiz()">發布小考</button>
+        </div>
+        <div id="sq-preview-list"></div>
       </div>
     </div>
 
@@ -209,6 +239,7 @@ let publishedQuizzes = [];
 let stuFilterClass = '';
 let statClass = '201';
 let selectedStatQuiz = '';
+let generatedSmallQuiz = null;
 
 // ======== 登入驗證 ========
 onAuthStateChanged(auth, async (user) => {
@@ -257,6 +288,85 @@ window.showPanel = (id) => {
   if (id === "scores") renderScores();
   if (id === "stats") renderStats();
   if (id === "review") renderReview();
+  if (id === "small-quiz") renderSmallQuizPanel();
+};
+
+function renderSmallQuizPanel() {
+  const banks = Object.entries(BUILTIN_BANKS);
+  document.getElementById("sq-bank-list").innerHTML = banks.map(([chapter, questions]) => `
+    <label style="display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;">
+      <input type="checkbox" class="sq-bank" value="${chapter}">
+      <span style="font-size:13px;">${chapter}</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--text3);">${questions.length} 題</span>
+    </label>
+  `).join('');
+}
+
+window.clearSmallQuizDraft = () => {
+  generatedSmallQuiz = null;
+  document.getElementById("sq-name").value = '';
+  document.getElementById("sq-class").value = '';
+  document.getElementById("sq-count").value = '';
+  document.getElementById("sq-duration").value = '';
+  document.querySelectorAll(".sq-bank").forEach(c => c.checked = false);
+  document.getElementById("sq-preview-card").style.display = "none";
+};
+
+window.generateSmallQuiz = () => {
+  const name = document.getElementById("sq-name").value.trim();
+  const cls = document.getElementById("sq-class").value;
+  const questionCount = Number(document.getElementById("sq-count").value);
+  const durationMin = Number(document.getElementById("sq-duration").value);
+  const selectedBanks = [...document.querySelectorAll(".sq-bank:checked")].map(c => c.value);
+  if (!name) return alert("請填寫小考名稱");
+  if (!cls) return alert("請選擇班級");
+  if (!Number.isInteger(questionCount) || questionCount <= 0) return alert("請輸入正確題數");
+  if (!Number.isInteger(durationMin) || durationMin <= 0) return alert("請輸入正確考試時間");
+  if (!selectedBanks.length) return alert("請至少勾選一個題庫");
+  const pool = selectedBanks.flatMap(ch => (BUILTIN_BANKS[ch] || []).map(q => ({ ...q, chapter: ch })));
+  if (questionCount > pool.length) return alert(`可抽題總數不足，目前最多 ${pool.length} 題`);
+  const picked = [...pool].sort(() => Math.random() - 0.5).slice(0, questionCount);
+  generatedSmallQuiz = { name, cls, questionCount, durationMin, selectedBanks, questions: picked };
+  renderSmallQuizPreview();
+};
+
+function renderSmallQuizPreview() {
+  if (!generatedSmallQuiz) return;
+  document.getElementById("sq-preview-card").style.display = "block";
+  document.getElementById("sq-prev-title").textContent = "🧪 " + generatedSmallQuiz.name;
+  document.getElementById("sq-prev-meta").textContent = `${generatedSmallQuiz.cls}・${generatedSmallQuiz.questionCount} 題・${generatedSmallQuiz.durationMin} 分鐘`;
+  document.getElementById("sq-preview-list").innerHTML = generatedSmallQuiz.questions.map((q, i) => `
+    <div class="q-preview">
+      <div class="q-prev-head"><div class="q-prev-num">Q${i + 1}</div><div class="q-prev-text">${q.text}</div></div>
+      <div class="q-opts-grid">${(q.options || []).map((o, oi) => `<div class="q-opt ${oi === q.answer ? 'ans' : ''}">${OPTS[oi]}. ${o}</div>`).join('')}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px;">題庫：${q.chapter || '—'}</div>
+    </div>
+  `).join('');
+}
+
+window.publishSmallQuiz = async () => {
+  if (!generatedSmallQuiz) return;
+  try {
+    await addDoc(collection(db, "quizzes"), {
+      name: generatedSmallQuiz.name,
+      cls: generatedSmallQuiz.cls,
+      questions: generatedSmallQuiz.questions,
+      questionCount: generatedSmallQuiz.questionCount,
+      durationMin: generatedSmallQuiz.durationMin,
+      selectedBanks: generatedSmallQuiz.selectedBanks,
+      quizType: "small-test",
+      status: "published",
+      createdBy: auth.currentUser?.uid || "dev-teacher",
+      createdAt: serverTimestamp()
+    });
+    alert("✓ 小考已發布！");
+    generatedSmallQuiz = null;
+    document.getElementById("sq-preview-card").style.display = "none";
+    await loadPublishedQuizzes();
+    showPanel("published");
+  } catch (e) {
+    alert("發布小考失敗：" + e.message);
+  }
 };
 
 // ======== 命題系統 ========
