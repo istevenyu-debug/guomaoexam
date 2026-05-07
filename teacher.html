@@ -29,22 +29,22 @@
   <div class="navbar">
 
     <!-- 命題系統 -->
-    <button class="nav-group-btn" onclick="showPanel('upload')" id="nb-upload">📤 上傳題目</button>
-    <button class="nav-group-btn" onclick="showPanel('review')" id="nb-review">🔍 審核題目</button>
-    <button class="nav-group-btn" onclick="showPanel('published')" id="nb-published">📋 已發布</button>
+    <button class="nav-group-btn" onclick="showPanel('upload')" id="nb-upload">1️⃣ 命題與發佈</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-review">2️⃣ 會員管理</button>
+    <button class="nav-group-btn" onclick="showPanel('review')" id="nb-published">3️⃣ 查看成績</button>
 
     <div class="nav-divider-v"></div>
 
     <!-- 會員系統 -->
-    <button class="nav-group-btn" onclick="showPanel('stu-list')" id="nb-stu-list">👥 學生名單</button>
-    <button class="nav-group-btn" onclick="showPanel('stu-pending')" id="nb-stu-pending">⏳ 待審核</button>
-    <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stu-public">💼 社會人士</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stu-list">4️⃣ 錯題統計（含AB卷內容合併）</button>
+    <button class="nav-group-btn" onclick="goBack()" id="nb-stu-pending">5️⃣ 回上一層</button>
+    <button class="nav-group-btn" onclick="showPanel('upload')" id="nb-stu-public">一般練習</button>
 
     <div class="nav-divider-v"></div>
 
     <!-- 成績系統 -->
-    <button class="nav-group-btn" onclick="showPanel('scores')" id="nb-scores">🏆 成績冊</button>
-    <button class="nav-group-btn" onclick="showPanel('stats')" id="nb-stats">📉 錯題統計</button>
+    <button class="nav-group-btn" onclick="showPanel('review')" id="nb-scores">特定小考</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stats">會員分組</button>
 
     <button class="nav-logout" onclick="doLogout()">🚪 登出</button>
   </div>
@@ -59,26 +59,26 @@
       <div style="font-size:13px;color:var(--text3);">請從上方選單選擇功能</div>
     </div>
 
-    <!-- 命題系統：上傳題目 -->
+    <!-- 命題系統：命題與發佈 -->
     <div class="panel" id="panel-upload">
       <div class="card">
-        <div class="card-head"><div><div class="card-title">上傳題目</div><div class="card-sub">選擇章節與班級，預覽確認後發布</div></div></div>
-        <div class="form-row"><label class="form-label">題卷名稱</label><input class="form-input" id="qname" placeholder="例：Ch17 匯票與貨運單據 第一回"></div>
+        <div class="card-head"><div><div class="card-title">命題與發佈</div><div class="card-sub">一般練習：上傳在地檔案、預覽題目後發佈</div></div></div>
+        <div class="form-row"><label class="form-label">一般練習卷名</label><input class="form-input" id="qname" placeholder="例：Ch17 匯票與貨運單據 第一回"></div>
         <div class="form-row"><label class="form-label">指定班級</label>
           <select class="form-select" id="qclass">
             <option value="">— 選擇班級 —</option>
             <option>201</option><option>202</option><option>203</option><option>全部班級</option>
           </select>
         </div>
-        <div class="form-row"><label class="form-label">選擇章節</label>
+        <div class="form-row"><label class="form-label">選擇題庫章節</label>
           <select class="form-select" id="qchapter">
-            <option value="">— 選擇章節 —</option>
+            <option value="">— 選擇題庫章節 —</option>
             <option>Ch17 匯票與貨運單據</option>
             <option>Ch18 進出口結匯</option>
           </select>
         </div>
         <div style="text-align:right;margin-top:4px;">
-          <button class="btn btn-primary" onclick="previewQuiz()">預覽題目與詳解 →</button>
+          <button class="btn btn-primary" onclick="previewQuiz()">預覽一般練習題目 →</button>
         </div>
         <div id="ustatus" style="display:none;margin-top:10px;"></div>
       </div>
@@ -87,7 +87,7 @@
     <!-- 命題系統：審核題目 -->
     <div class="panel" id="panel-review">
       <div id="no-pending" class="card" style="text-align:center;padding:32px;color:var(--text3);">
-        目前沒有待審核的題卷<br><span style="font-size:12px;">請先至「上傳題目」選擇章節</span>
+        目前沒有待審核的題卷<br><span style="font-size:12px;">請先至「命題與發佈」選擇題庫章節</span>
       </div>
       <div id="has-pending" style="display:none;">
         <div class="pending-notice">⚠️ 請確認以下題目與詳解正確無誤，確認後學生才能看到。</div>
@@ -126,7 +126,7 @@
           <div class="card-title">學生名單</div>
           <div id="stu-count" style="font-size:12px;color:var(--text3);"></div>
         </div>
-        <div id="stu-list-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+        <div id="stu-list-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">可勾選現有題庫、填題數自動產生A/B卷，設定考試時間，預覽後發佈。</div></div>
       </div>
     </div>
 
@@ -134,7 +134,7 @@
     <div class="panel" id="panel-stu-pending">
       <div class="card" style="padding:14px 16px;">
         <div class="card-head">
-          <div class="card-title">待審核學生</div>
+          <div class="card-title">201/202/203/社會人士</div>
           <div id="pending-count" style="font-size:12px;color:var(--text3);"></div>
         </div>
         <div id="pending-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
@@ -145,29 +145,29 @@
     <div class="panel" id="panel-stu-public">
       <div class="card" style="padding:14px 16px;">
         <div class="card-head">
-          <div class="card-title">社會人士名單</div>
+          <div class="card-title">特定小考設定</div>
           <div id="public-count" style="font-size:12px;color:var(--text3);"></div>
         </div>
         <div id="public-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
       </div>
     </div>
 
-    <!-- 成績系統：成績冊 -->
+    <!-- 成績系統：查看成績 -->
     <div class="panel" id="panel-scores">
       <div class="filter-bar">
         <span class="filter-label">班級：</span>
         <button class="filter-btn on" id="sc-btn-201" onclick="pickScoreClass(this,'201')">201</button>
         <button class="filter-btn" id="sc-btn-202" onclick="pickScoreClass(this,'202')">202</button>
         <button class="filter-btn" id="sc-btn-203" onclick="pickScoreClass(this,'203')">203</button>
-        <button class="filter-btn" onclick="pickScoreClass(this,'public')" style="margin-left:12px;border-style:dashed;">💼 社會人士</button>
+        <button class="filter-btn" onclick="pickScoreClass(this,'public')" style="margin-left:12px;border-style:dashed;">一般練習</button>
       </div>
       <div class="card" style="padding:14px 16px;">
-        <div class="card-head"><div class="card-title">成績冊</div><div class="card-sub">考全部・10題練習各別統計</div></div>
+        <div class="card-head"><div class="card-title">查看成績</div><div class="card-sub">每學生顯示：最近一次 / 已測幾次 / 均分</div></div>
         <div id="scores-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
       </div>
     </div>
 
-    <!-- 成績系統：錯題統計 -->
+    <!-- 成績系統：錯題統計（含AB卷內容合併） -->
     <div class="panel" id="panel-stats">
       <div class="filter-bar">
         <span class="filter-label">班級：</span>
@@ -228,6 +228,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 window.doLogout = async () => { await signOut(auth); window.location.href = "index.html"; };
+window.goBack = () => { window.location.href = 'index.html'; };
+
 
 // ======== 導覽 ========
 window.toggleGroup = (id) => {
@@ -264,9 +266,9 @@ window.previewQuiz = () => {
   const name = document.getElementById("qname").value.trim();
   const cls = document.getElementById("qclass").value;
   const chapter = document.getElementById("qchapter").value;
-  if (!name) { alert("請填寫題卷名稱"); return; }
+  if (!name) { alert("請填寫一般練習卷名"); return; }
   if (!cls) { alert("請選擇班級"); return; }
-  if (!chapter) { alert("請選擇章節"); return; }
+  if (!chapter) { alert("請選擇題庫章節"); return; }
   const questions = BUILTIN_BANKS[chapter];
   if (!questions) { alert("找不到題庫"); return; }
   window._pendingQuiz = { name, cls, questions };
@@ -384,7 +386,7 @@ async function renderPending() {
     const snap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("status", "==", "pending")));
     const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     document.getElementById("pending-count").textContent = `共 ${list.length} 位待審核`;
-    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">目前沒有待審核學生 ✓</div>'; return; }
+    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">目前沒有201/202/203/社會人士 ✓</div>'; return; }
     el.innerHTML = `<table class="q-table" style="width:100%">
       <thead><tr><th>姓名</th><th>班級</th><th>學校</th><th>Email</th><th>申請時間</th><th style="text-align:center;">操作</th></tr></thead>
       <tbody>${list.map(s => {
