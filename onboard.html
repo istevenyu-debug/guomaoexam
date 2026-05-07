@@ -155,6 +155,7 @@ window.submitStudent = async () => {
       role: "student",
       status: "pending", // 等待老師審核
       plan: "free",
+      disabled: false,
       createdAt: serverTimestamp()
     });
     window.location.href = "pending.html";
@@ -175,6 +176,7 @@ window.submitPublic = async () => {
       role: "public",
       status: "active", // 社青直接通過
       plan: "free",
+      disabled: false,
       createdAt: serverTimestamp()
     });
     window.location.href = "student.html";

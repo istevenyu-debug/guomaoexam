@@ -140,8 +140,8 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   // 學生：被停權
-  if (data.status === "suspended") {
-    alert("您的帳號已被停用，請聯繫老師。");
+  if (data.status === "disabled" || data.disabled === true || data.status === "suspended") {
+    alert("帳號已停權，請聯絡老師");
     await auth.signOut();
     return;
   }
