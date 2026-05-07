@@ -40,6 +40,7 @@
     <button class="nav-group-btn" onclick="showPanel('stu-list')" id="nb-stu-list">👥 學生名單</button>
     <button class="nav-group-btn" onclick="showPanel('stu-pending')" id="nb-stu-pending">⏳ 待審核</button>
     <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stu-public">💼 社會人士</button>
+    <button class="nav-group-btn" onclick="showPanel('stu-disabled')" id="nb-stu-disabled">🚫 停權管理</button>
 
     <div class="nav-divider-v"></div>
 
@@ -182,6 +183,18 @@
       </div>
     </div>
 
+
+    <!-- 會員系統：停權使用者管理 -->
+    <div class="panel" id="panel-stu-disabled">
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head">
+          <div class="card-title">停權使用者管理</div>
+          <div id="disabled-count" style="font-size:12px;color:var(--text3);"></div>
+        </div>
+        <div id="disabled-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
     <!-- 成績系統：成績冊 -->
     <div class="panel" id="panel-scores">
       <div class="filter-bar">
@@ -285,6 +298,7 @@ window.showPanel = (id) => {
   if (id === "stu-list") renderStuList();
   if (id === "stu-pending") renderPending();
   if (id === "stu-public") renderPublicList();
+  if (id === "stu-disabled") renderDisabledUsers();
   if (id === "scores") renderScores();
   if (id === "stats") renderStats();
   if (id === "review") renderReview();
@@ -465,7 +479,7 @@ async function renderStuList() {
       : query(collection(db, "users"), where("role", "==", "student"));
     const snap = await getDocs(q);
     const students = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(s => s.status === "active")
+      .filter(s => s.status === "active" && s.disabled !== true)
       .sort((a, b) => (a.class || '').localeCompare(b.class || '') || (a.name || '').localeCompare(b.name || ''));
     document.getElementById("stu-count").textContent = `共 ${students.length} 位`;
     if (!students.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無學生</div>'; return; }
@@ -530,9 +544,11 @@ window.rejectUser = async (uid, name) => {
 
 window.suspendUser = async (uid, name) => {
   if (!confirm(`確定停權「${name}」？停權後該學生將無法登入。`)) return;
-  await updateDoc(doc(db, "users", uid), { status: "suspended" });
+  await updateDoc(doc(db, "users", uid), { status: "disabled", disabled: true, disabledAt: serverTimestamp() });
   alert(`已停權 ${name}`);
   renderStuList();
+  renderPublicList();
+  renderDisabledUsers();
 };
 
 async function renderPublicList() {
@@ -545,7 +561,7 @@ async function renderPublicList() {
     document.getElementById("public-count").textContent = `共 ${list.length} 位`;
     if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無社會人士</div>'; return; }
     el.innerHTML = `<table class="q-table" style="width:100%">
-      <thead><tr><th>姓名</th><th>職業</th><th>報考目的</th><th>Email</th><th>方案</th><th>註冊時間</th></tr></thead>
+      <thead><tr><th>姓名</th><th>職業</th><th>報考目的</th><th>Email</th><th>方案</th><th>註冊時間</th><th style="text-align:center;">操作</th></tr></thead>
       <tbody>${list.map(s => {
         const date = s.createdAt?.toDate ? s.createdAt.toDate().toLocaleDateString('zh-TW') : '—';
         return `<tr>
@@ -555,10 +571,59 @@ async function renderPublicList() {
           <td style="font-size:12px;color:var(--text2);">${s.email || '—'}</td>
           <td><span class="badge ${s.plan === 'paid' ? 'badge-blue' : 'badge-gray'}">${s.plan === 'paid' ? '付費' : '免費'}</span></td>
           <td style="font-size:12px;color:var(--text3);">${date}</td>
+          <td style="text-align:center;">
+            <button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="suspendUser('${s.id}','${s.name}')">停權</button>
+          </td>
         </tr>`;
       }).join('')}</tbody></table>`;
   } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
 }
+
+
+
+async function renderDisabledUsers() {
+  const el = document.getElementById("disabled-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(u => u.status === "disabled" || u.disabled === true)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    document.getElementById("disabled-count").textContent = `共 ${list.length} 位`;
+    if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">目前沒有停權帳號</div>'; return; }
+    el.innerHTML = `<table class="q-table" style="width:100%">
+      <thead><tr><th>姓名</th><th>Email</th><th>角色</th><th>停權時間</th><th style="text-align:center;">操作</th></tr></thead>
+      <tbody>${list.map(u => {
+        const dt = u.disabledAt?.toDate ? u.disabledAt.toDate().toLocaleString('zh-TW') : (u.updatedAt?.toDate ? u.updatedAt.toDate().toLocaleString('zh-TW') : '—');
+        return `<tr>
+          <td style="font-weight:500;">${u.name || '—'}</td>
+          <td style="font-size:12px;color:var(--text2);">${u.email || '—'}</td>
+          <td><span style="background:var(--surface2);padding:2px 8px;border-radius:4px;font-size:12px;">${u.role || '—'}</span></td>
+          <td style="font-size:12px;color:var(--text3);">${dt}</td>
+          <td style="text-align:center;display:flex;gap:6px;justify-content:center;">
+            <button class="btn btn-sm btn-primary" onclick="reactivateUser('${u.id}','${u.name}')">復權</button>
+            <button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="deleteUserData('${u.id}','${u.name}')">刪除資料</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) { el.innerHTML = `<div style="color:var(--danger);text-align:center;padding:20px;">讀取失敗：${e.message}</div>`; }
+}
+
+window.reactivateUser = async (uid, name) => {
+  if (!confirm(`確定復權「${name}」？`)) return;
+  await updateDoc(doc(db, "users", uid), { status: "active", disabled: false });
+  alert(`已復權 ${name}`);
+  renderDisabledUsers();
+  renderStuList();
+  renderPublicList();
+};
+
+window.deleteUserData = async (uid, name) => {
+  if (!confirm(`確定刪除「${name}」的 users 資料？此動作無法復原。`)) return;
+  await deleteDoc(doc(db, "users", uid));
+  alert(`已刪除 ${name} 的資料`);
+  renderDisabledUsers();
+};
 
 // ======== 成績系統 ========
 let scoreClass = '201';
