@@ -107,7 +107,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs,
-  query, where, orderBy, serverTimestamp }
+  query, where, orderBy, serverTimestamp, limit }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, TEACHER_EMAIL } from "./js/config.js";
 
@@ -142,9 +142,8 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "index.html"; return; }
   if (user.email === TEACHER_EMAIL) { window.location.href = "teacher.html"; return; }
   currentUser = user;
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists()) { window.location.href = "onboard.html"; return; }
-  userData = snap.data();
+  userData = await resolveUserProfile(user);
+  if (!userData) { window.location.href = "onboard.html"; return; }
   if (userData.status === "pending") { window.location.href = "pending.html"; return; }
   if (userData.status === "disabled" || userData.disabled === true) { alert("帳號已停權，請聯絡老師"); await signOut(auth); window.location.href = "index.html"; return; }
   document.getElementById("stu-avatar").textContent = (userData.name || "學")[0];
@@ -154,6 +153,19 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 window.doLogout = async () => { await signOut(auth); window.location.href = "index.html"; };
+
+async function resolveUserProfile(user) {
+  const direct = await getDoc(doc(db, "users", user.uid));
+  if (direct.exists()) return direct.data();
+  const q = query(collection(db, "users"), where("email", "==", user.email), limit(1));
+  const byEmail = await getDocs(q);
+  if (byEmail.empty) return null;
+  const found = byEmail.docs[0];
+  const data = found.data();
+  await setDoc(doc(db, "users", user.uid), { ...data, email: user.email, migratedFromUid: found.id }, { merge: true });
+  return data;
+}
+
 
 // 導覽
 window.sNav = (id) => {
