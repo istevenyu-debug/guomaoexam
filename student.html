@@ -146,7 +146,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!snap.exists()) { window.location.href = "onboard.html"; return; }
   userData = snap.data();
   if (userData.status === "pending") { window.location.href = "pending.html"; return; }
-  if (userData.status === "disabled" || userData.disabled === true || userData.status === "suspended") { alert("帳號已停權，請聯絡老師"); await signOut(auth); window.location.href = "index.html"; return; }
+  if (userData.status === "disabled" || userData.disabled === true) { alert("帳號已停權，請聯絡老師"); await signOut(auth); window.location.href = "index.html"; return; }
   document.getElementById("stu-avatar").textContent = (userData.name || "學")[0];
   document.getElementById("stu-name").textContent = userData.name || user.email;
   document.getElementById("stu-class").textContent = userData.class || userData.occupation || '';

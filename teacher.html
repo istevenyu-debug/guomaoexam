@@ -581,6 +581,7 @@ async function renderPublicList() {
   try {
     const snap = await getDocs(query(collection(db, "users"), where("role", "==", "public")));
     const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(u => u.status === "active" && u.disabled !== true)
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     document.getElementById("public-count").textContent = `共 ${list.length} 位`;
     if (!list.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">尚無社會人士</div>'; return; }
@@ -618,7 +619,11 @@ async function renderDisabledUsers() {
     el.innerHTML = `<table class="q-table" style="width:100%">
       <thead><tr><th>姓名</th><th>Email</th><th>角色</th><th>停權時間</th><th style="text-align:center;">操作</th></tr></thead>
       <tbody>${list.map(u => {
-        const dt = u.disabledAt?.toDate ? u.disabledAt.toDate().toLocaleString('zh-TW') : (u.updatedAt?.toDate ? u.updatedAt.toDate().toLocaleString('zh-TW') : '—');
+        const dt = u.disabledAt?.toDate
+          ? u.disabledAt.toDate().toLocaleString('zh-TW')
+          : (u.updatedAt?.toDate
+            ? u.updatedAt.toDate().toLocaleString('zh-TW')
+            : (u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString('zh-TW') : '—'));
         return `<tr>
           <td style="font-weight:500;">${u.name || '—'}</td>
           <td style="font-size:12px;color:var(--text2);">${u.email || '—'}</td>
