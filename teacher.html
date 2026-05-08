@@ -525,29 +525,35 @@ function buildQuizDownloadLines(quiz, downloadType) {
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
   const lines = [];
   if (downloadType === "paper" || downloadType === "full") {
-    lines.push(`卷名：${quiz.name || "未命名題卷"}`);
+    lines.push({ text: `${quiz.name || "未命名題卷"}　　　　　　　　　班級＿＿＿＿　學號＿＿＿＿　姓名＿＿＿＿` });
+    lines.push({ text: "" });
     questions.forEach((q, i) => {
-      lines.push(`第 ${i + 1} 題：${q.text || ""}`);
-      (q.options || []).forEach((opt, idx) => lines.push(`${OPTS[idx]}. ${opt}`));
-      lines.push("");
+      const options = Array.isArray(q.options) ? q.options : [];
+      const optionText = options.map((opt, idx) => `(${OPTS[idx]})${opt || ""}`).join("	");
+      lines.push({
+        text: `${i + 1}.(　　)${q.text || ""}
+	${optionText}`,
+        style: "question"
+      });
+      lines.push({ text: "" });
     });
   }
   if (downloadType === "answer_explanation" || downloadType === "full") {
-    if (downloadType === "full") lines.push("====== 答案表 ======");
+    if (downloadType === "full") lines.push({ text: "====== 答案表 ======" });
     questions.forEach((q, i) => {
       const answerIdx = typeof q.answer === "number" ? q.answer : -1;
       const answer = answerIdx >= 0 ? (OPTS[answerIdx] || `選項${answerIdx + 1}`) : "未設定";
-      lines.push(`第 ${i + 1} 題：${answer}`);
+      lines.push({ text: `第 ${i + 1} 題：${answer}` });
       if (downloadType === "answer_explanation") {
-        lines.push(`詳解：${getQuestionExplanation(q)}`);
+        lines.push({ text: `詳解：${getQuestionExplanation(q)}` });
       }
     });
   }
   if (downloadType === "full") {
-    lines.push("");
-    lines.push("====== 詳解 ======");
+    lines.push({ text: "" });
+    lines.push({ text: "====== 詳解 ======" });
     questions.forEach((q, i) => {
-      lines.push(`第 ${i + 1} 題詳解：${getQuestionExplanation(q)}`);
+      lines.push({ text: `第 ${i + 1} 題詳解：${getQuestionExplanation(q)}` });
     });
   }
   return lines;
@@ -563,9 +569,23 @@ function escapeXml(text) {
 }
 
 function buildWordDocumentXml(lines) {
-  const paragraphXml = lines.map(line => {
-    if (!line) return "<w:p/>";
-    return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`;
+  const paragraphXml = lines.map(item => {
+    const paragraph = typeof item === "string" ? { text: item } : (item || {});
+    const text = paragraph.text || "";
+    if (!text) return "<w:p/>";
+
+    const paragraphPr = paragraph.style === "question"
+      ? '<w:pPr><w:tabs><w:tab w:val="left" w:pos="1040"/></w:tabs><w:ind w:left="1040" w:hanging="1040"/></w:pPr>'
+      : "";
+
+    const runXml = escapeXml(text)
+      .split("\n")
+      .map((segment, idx) => idx === 0
+        ? `<w:r><w:t xml:space="preserve">${segment}</w:t></w:r>`
+        : `<w:r><w:br/></w:r><w:r><w:t xml:space="preserve">${segment}</w:t></w:r>`)
+      .join("");
+
+    return `<w:p>${paragraphPr}${runXml}</w:p>`;
   }).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
