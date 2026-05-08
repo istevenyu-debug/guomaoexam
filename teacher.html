@@ -448,10 +448,34 @@ function renderPublished() {
       <div style="flex:1"><div style="font-size:14px;font-weight:500;">${q.name}</div>
       <div style="font-size:12px;color:var(--text3);margin-top:2px;">${q.cls}・${q.questions.length} 題</div></div>
       <span class="badge badge-lo">已發布</span>
+      <button class="btn btn-sm" style="margin-left:8px;" onclick="downloadPublishedQuiz('${q.id}')">下載題目</button>
       <button class="btn btn-sm" style="margin-left:8px;color:var(--danger);border-color:var(--danger);" onclick="deletePublishedQuiz('${q.id}','${q.name}')">刪除</button>
     </div>`).join('');
   publishedQuizzes.forEach(q => console.log("已渲染刪除按鈕", q.id));
 }
+
+window.downloadPublishedQuiz = (quizId) => {
+  const quiz = publishedQuizzes.find(q => q.id === quizId);
+  if (!quiz) return alert("找不到題卷資料");
+  const payload = {
+    id: quiz.id,
+    name: quiz.name,
+    cls: quiz.cls,
+    quizType: quiz.quizType || "regular",
+    questionCount: quiz.questions?.length || 0,
+    questions: quiz.questions || []
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeName = (quiz.name || "quiz").replace(/[\\/:*?\"<>|]/g, "_");
+  a.href = url;
+  a.download = `${safeName}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 
 window.deletePublishedQuiz = async (quizId, quizName) => {
   if (!confirm(`確定要刪除「${quizName}」嗎？`)) return;
