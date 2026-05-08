@@ -525,15 +525,22 @@ function buildQuizDownloadLines(quiz, downloadType) {
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
   const lines = [];
   if (downloadType === "paper" || downloadType === "full") {
-    lines.push({ text: `${quiz.name || "未命名題卷"}　　　　　　　　　班級＿＿＿＿　學號＿＿＿＿　姓名＿＿＿＿` });
+    lines.push({
+      text: `${quiz.name || "未命名題卷"}    班級：＿＿＿＿    學號：＿＿＿＿    姓名：＿＿＿＿`,
+      style: "paperHeader"
+    });
     lines.push({ text: "" });
     questions.forEach((q, i) => {
       const options = Array.isArray(q.options) ? q.options : [];
-      const optionText = options.map((opt, idx) => `(${OPTS[idx]})${opt || ""}`).join("	");
       lines.push({
-        text: `${i + 1}.(　　)${q.text || ""}
-	${optionText}`,
+        text: `${i + 1}. (　　) ${q.text || ""}`,
         style: "question"
+      });
+      options.forEach((opt, idx) => {
+        lines.push({
+          text: `(${OPTS[idx]}) ${opt || ""}`,
+          style: "option"
+        });
       });
       lines.push({ text: "" });
     });
@@ -574,9 +581,12 @@ function buildWordDocumentXml(lines) {
     const text = paragraph.text || "";
     if (!text) return "<w:p/>";
 
-    const paragraphPr = paragraph.style === "question"
-      ? '<w:pPr><w:tabs><w:tab w:val="left" w:pos="1040"/></w:tabs><w:ind w:left="1040" w:hanging="1040"/></w:pPr>'
-      : "";
+    const paragraphStyleMap = {
+      paperHeader: '<w:pPr><w:jc w:val="left"/><w:spacing w:after="120"/><w:rPr><w:b/></w:rPr></w:pPr>',
+      question: '<w:pPr><w:spacing w:before="80" w:after="40"/><w:ind w:left="0" w:hanging="0"/></w:pPr>',
+      option: '<w:pPr><w:spacing w:after="20"/><w:ind w:left="720" w:hanging="420"/></w:pPr>'
+    };
+    const paragraphPr = paragraphStyleMap[paragraph.style] || "";
 
     const runXml = escapeXml(text)
       .split("\n")
