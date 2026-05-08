@@ -11,6 +11,10 @@ service cloud.firestore {
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
+    function hasTeacherRole() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher";
+    }
 
     // 用戶資料
     match /users/{uid} {
@@ -23,7 +27,8 @@ service cloud.firestore {
     // 題卷
     match /quizzes/{quizId} {
       allow read: if isLoggedIn() && (isTeacher() || resource.data.status == 'published');
-      allow write: if isTeacher();
+      allow create, update: if isTeacher();
+      allow delete: if hasTeacherRole();
     }
 
     // 練習記錄
