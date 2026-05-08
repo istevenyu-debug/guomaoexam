@@ -241,6 +241,7 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs,
   query, where, orderBy, updateDoc, serverTimestamp, deleteDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import JSZip from "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm";
 import { firebaseConfig, TEACHER_EMAIL, CLASSES } from "./js/config.js";
 import { BUILTIN_BANKS } from "./js/questions.js";
 
@@ -248,6 +249,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const OPTS = ['A','B','C','D'];
+const DOWNLOAD_TYPE_LABELS = {
+  paper: "題目卷",
+  answer_explanation: "答案詳解",
+  full: "題目答案詳解"
+};
 let publishedQuizzes = [];
 let stuFilterClass = '';
 let statClass = '201';
@@ -457,25 +463,150 @@ function renderPublished() {
 window.downloadPublishedQuiz = (quizId) => {
   const quiz = publishedQuizzes.find(q => q.id === quizId);
   if (!quiz) return alert("找不到題卷資料");
-  const payload = {
-    id: quiz.id,
-    name: quiz.name,
-    cls: quiz.cls,
-    quizType: quiz.quizType || "regular",
-    questionCount: quiz.questions?.length || 0,
-    questions: quiz.questions || []
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const option = prompt(
+`請選擇下載內容：
+1. 題目卷（僅題目與選項）
+2. 答案 + 詳解
+3. 題目在前，中間有答案，後面有詳解
+
+請輸入 1 / 2 / 3`, "1");
+  if (!option) return;
+  const typeMap = { "1": "paper", "2": "answer_explanation", "3": "full" };
+  const selectedType = typeMap[option.trim()];
+  if (!selectedType) return alert("下載取消：請輸入 1、2 或 3。");
+  try {
+    downloadQuizAsDocx(quiz, selectedType);
+  } catch (e) {
+    alert("下載失敗：" + e.message);
+  }
+};
+
+function getQuestionExplanation(q) {
+  return q?.explanation || q?.detail || q?.analysis || q?.explain || "無詳解";
+}
+
+function formatDateForFilename(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+function sanitizeFileName(name) {
+  return (name || "quiz").replace(/[\\/:*?\"<>|]/g, "_");
+}
+
+async function downloadQuizAsDocx(quiz, downloadType) {
+  const lines = buildQuizDownloadLines(quiz, downloadType);
+  const docXml = buildWordDocumentXml(lines);
+  const zip = new JSZip();
+  zip.file("[Content_Types].xml", getDocxContentTypesXml());
+  zip.folder("_rels").file(".rels", getDocxRootRelsXml());
+  zip.folder("word").file("document.xml", docXml);
+  zip.folder("word").folder("_rels").file("document.xml.rels", getDocxDocumentRelsXml());
+  const blob = await zip.generateAsync({
+    type: "blob",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const safeName = (quiz.name || "quiz").replace(/[\\/:*?\"<>|]/g, "_");
   a.href = url;
-  a.download = `${safeName}.json`;
+  const typeLabel = DOWNLOAD_TYPE_LABELS[downloadType] || downloadType;
+  const safeName = sanitizeFileName(quiz.name || "題卷");
+  const dateStr = formatDateForFilename();
+  a.download = `${safeName}_${typeLabel}_${dateStr}.docx`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-};
+}
+
+function buildQuizDownloadLines(quiz, downloadType) {
+  const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+  const lines = [];
+  if (downloadType === "paper" || downloadType === "full") {
+    lines.push(`卷名：${quiz.name || "未命名題卷"}`);
+    questions.forEach((q, i) => {
+      lines.push(`第 ${i + 1} 題：${q.text || ""}`);
+      (q.options || []).forEach((opt, idx) => lines.push(`${OPTS[idx]}. ${opt}`));
+      lines.push("");
+    });
+  }
+  if (downloadType === "answer_explanation" || downloadType === "full") {
+    if (downloadType === "full") lines.push("====== 答案表 ======");
+    questions.forEach((q, i) => {
+      const answerIdx = typeof q.answer === "number" ? q.answer : -1;
+      const answer = answerIdx >= 0 ? (OPTS[answerIdx] || `選項${answerIdx + 1}`) : "未設定";
+      lines.push(`第 ${i + 1} 題：${answer}`);
+      if (downloadType === "answer_explanation") {
+        lines.push(`詳解：${getQuestionExplanation(q)}`);
+      }
+    });
+  }
+  if (downloadType === "full") {
+    lines.push("");
+    lines.push("====== 詳解 ======");
+    questions.forEach((q, i) => {
+      lines.push(`第 ${i + 1} 題詳解：${getQuestionExplanation(q)}`);
+    });
+  }
+  return lines;
+}
+
+function escapeXml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function buildWordDocumentXml(lines) {
+  const paragraphXml = lines.map(line => {
+    if (!line) return "<w:p/>";
+    return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`;
+  }).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+ xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+ xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+ xmlns:v="urn:schemas-microsoft-com:vml"
+ xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+ xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+ xmlns:w10="urn:schemas-microsoft-com:office:word"
+ xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+ xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+ xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"
+ xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+ xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+ xmlns:wne="http://schemas.microsoft.com/office/2006/wordml"
+ xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+ mc:Ignorable="w14 w15 wp14">
+  <w:body>
+    ${paragraphXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+}
+
+function getDocxContentTypesXml() { return `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`; }
+function getDocxRootRelsXml() { return `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`; }
+function getDocxDocumentRelsXml() { return `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`; }
 
 window.deletePublishedQuiz = async (quizId, quizName) => {
   if (!confirm(`確定要刪除「${quizName}」嗎？`)) return;
