@@ -24,20 +24,20 @@
     <div class="login-title">國貿丙檢練習平台</div>
     <div class="login-sub">國際貿易實務學科線上練習</div>
 
-    <button class="btn btn-google" id="google-login-btn">
-      <svg width="18" height="18" viewBox="0 0 48 48">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      使用 Google 帳號登入
-    </button>
+    <div class="form-row" style="text-align:left;">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="email" type="email" placeholder="student@example.com">
+    </div>
+    <div class="form-row" style="text-align:left;">
+      <label class="form-label">密碼</label>
+      <input class="form-input" id="password" type="password" placeholder="請輸入密碼">
+    </div>
+    <button class="btn btn-primary" id="email-login-btn" style="width:100%;">使用 Email + 密碼登入</button>
+    <button class="btn" id="reset-password-btn" style="width:100%;margin-top:8px;">忘記密碼 / 首次設定密碼</button>
 
     <div class="login-note">
-      本平台使用 Google 登入<br>
-      僅取得姓名與 Email 供身份識別<br>
-      不會用於其他用途
+      學生請使用 Email + 密碼登入。<br>
+      若第一次設定密碼，請先輸入 Email 再點「忘記密碼 / 首次設定密碼」。
     </div>
 
     <!-- 開發者模式：點 LOGO 5下才出現 -->
@@ -102,16 +102,16 @@ function devLogin(type) {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc }
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit, setDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, TEACHER_EMAIL } from "./js/config.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+auth.languageCode = "zh-TW";
 
 // 監聽登入狀態
 onAuthStateChanged(auth, async (user) => {
@@ -123,15 +123,8 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // 查詢用戶資料
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists()) {
-    // 新用戶 → 首次設定
-    window.location.href = "onboard.html";
-    return;
-  }
-
-  const data = snap.data();
+    const data = await resolveUserProfile(user);
+  if (!data) { window.location.href = "onboard.html"; return; }
 
   // 學生：待審核
   if (data.role === "student" && data.status === "pending") {
@@ -142,7 +135,7 @@ onAuthStateChanged(auth, async (user) => {
   // 學生：被停權
   if (data.status === "disabled" || data.disabled === true) {
     alert("帳號已停權，請聯絡老師");
-    await auth.signOut();
+    await signOut(auth);
     return;
   }
 
@@ -150,12 +143,46 @@ onAuthStateChanged(auth, async (user) => {
   window.location.href = "student.html";
 });
 
-// Google 登入
-document.getElementById("google-login-btn").addEventListener("click", async () => {
+async function resolveUserProfile(user) {
+  const direct = await getDoc(doc(db, "users", user.uid));
+  if (direct.exists()) return direct.data();
+  const q = query(collection(db, "users"), where("email", "==", user.email), limit(1));
+  const byEmail = await getDocs(q);
+  if (byEmail.empty) return null;
+  const found = byEmail.docs[0];
+  const data = found.data();
+  await setDoc(doc(db, "users", user.uid), { ...data, email: user.email, migratedFromUid: found.id, updatedAt: new Date() }, { merge: true });
+  return data;
+}
+
+document.getElementById("email-login-btn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  if (!email || !password) { alert("請輸入 Email 與密碼"); return; }
   try {
-    await signInWithPopup(auth, provider);
+    await signInWithEmailAndPassword(auth, email, password);
   } catch(e) {
     alert("登入失敗：" + e.message);
+  }
+});
+
+document.getElementById("reset-password-btn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  if (!email) { alert("請先輸入 Email"); return; }
+  try {
+    const userSnap = await getDocs(query(collection(db, "users"), where("email", "==", email), limit(1)));
+    if (userSnap.empty) {
+      alert("找不到此 Email 對應的學生資料，請先完成註冊或聯絡老師確認 Email 是否正確。");
+      return;
+    }
+
+    await sendPasswordResetEmail(auth, email, {
+      url: `${window.location.origin}/index.html`,
+      handleCodeInApp: false
+    });
+    alert("密碼設定/重設信已寄出。若 3~5 分鐘內沒收到，請檢查垃圾郵件，或確認 Firebase Authentication 已啟用 Email/Password 與寄信網域設定。");
+  } catch(e) {
+    alert("寄送失敗：" + e.message + "\n請確認 Firebase Authentication 已啟用 Email/Password，且 Authorized domains 包含目前網域。");
   }
 });
 </script>

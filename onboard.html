@@ -107,7 +107,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, serverTimestamp, getDoc, collection, query, where, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig } from "./js/config.js";
 
 const app = initializeApp(firebaseConfig);
@@ -117,9 +117,13 @@ let currentUser = null;
 let selectedRole = null;
 let selectedClass = null;
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "index.html"; return; }
   currentUser = user;
+  const existing = await findExistingUser(user);
+  if (existing && existing.email) {
+    window.location.href = existing.status === "pending" ? "pending.html" : "student.html";
+  }
 });
 
 window.selectIdentity = (role) => {
@@ -182,6 +186,17 @@ window.submitPublic = async () => {
     window.location.href = "student.html";
   } catch(e) { alert("儲存失敗：" + e.message); }
 };
+
+async function findExistingUser(user) {
+  const direct = await getDoc(doc(db, "users", user.uid));
+  if (direct.exists()) return direct.data();
+  const q = query(collection(db, "users"), where("email", "==", user.email), limit(1));
+  const byEmail = await getDocs(q);
+  if (byEmail.empty) return null;
+  const data = byEmail.docs[0].data();
+  await setDoc(doc(db, "users", user.uid), { ...data, email: user.email, migratedFromUid: byEmail.docs[0].id }, { merge: true });
+  return data;
+}
 </script>
 </body>
 </html>
