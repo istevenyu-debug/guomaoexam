@@ -41,6 +41,7 @@
     <button class="nav-group-btn" onclick="showPanel('stu-pending')" id="nb-stu-pending">⏳ 待審核</button>
     <button class="nav-group-btn" onclick="showPanel('stu-public')" id="nb-stu-public">💼 社會人士</button>
     <button class="nav-group-btn" onclick="showPanel('stu-disabled')" id="nb-stu-disabled">🚫 停權管理</button>
+    <button class="nav-group-btn" onclick="showPanel('pwd-setup')" id="nb-pwd-setup">🔐 密碼設定信</button>
 
     <div class="nav-divider-v"></div>
 
@@ -195,6 +196,23 @@
       </div>
     </div>
 
+    <div class="panel" id="panel-pwd-setup">
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-head">
+          <div>
+            <div class="card-title">舊會員密碼設定管理</div>
+            <div class="card-sub">批次產生 24 小時一次性設定密碼連結（不串接 LINE API）</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="exportPasswordSetup(false)">匯出未完成</button>
+            <button class="btn btn-sm" onclick="exportPasswordSetup(true)">匯出已完成</button>
+            <button class="btn btn-primary btn-sm" onclick="sendBatchPasswordSetup()">批次寄送</button>
+          </div>
+        </div>
+        <div id="pwd-setup-content"><div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div></div>
+      </div>
+    </div>
+
     <!-- 成績系統：成績冊 -->
     <div class="panel" id="panel-scores">
       <div class="filter-bar">
@@ -305,6 +323,7 @@ window.showPanel = (id) => {
   if (id === "stu-pending") renderPending();
   if (id === "stu-public") renderPublicList();
   if (id === "stu-disabled") renderDisabledUsers();
+  if (id === "pwd-setup") renderPasswordSetupPanel();
   if (id === "scores") renderScores();
   if (id === "stats") renderStats();
   if (id === "review") renderReview();
@@ -813,6 +832,93 @@ window.deleteUserData = async (uid, name) => {
   await deleteDoc(doc(db, "users", uid));
   alert(`已刪除 ${name} 的資料`);
   renderDisabledUsers();
+};
+
+async function renderPasswordSetupPanel() {
+  const el = document.getElementById("pwd-setup-content");
+  el.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">載入中...</div>';
+  const snap = await getDocs(collection(db, "users"));
+  const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .filter(u => !!u.email)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);">尚無會員資料</div>'; return; }
+  el.innerHTML = `<table class="q-table" style="width:100%">
+    <thead><tr><th>姓名</th><th>Email</th><th>已寄送</th><th>寄送時間</th><th>已完成設定</th><th>完成時間</th><th>狀態</th><th>失敗原因</th><th>操作</th></tr></thead>
+    <tbody>${list.map(u => `
+      <tr>
+        <td>${u.name || '—'}</td>
+        <td>${u.email || '—'}</td>
+        <td>${u.passwordSetupEmailSent ? '是' : '否'}</td>
+        <td style="font-size:12px;">${fmtTs(u.passwordSetupSentAt)}</td>
+        <td>${u.isPasswordSet ? '是' : '否'}</td>
+        <td style="font-size:12px;">${fmtTs(u.passwordSetAt)}</td>
+        <td>${u.passwordSetupSendStatus || '—'}</td>
+        <td style="font-size:12px;color:var(--danger);">${u.passwordSetupSendError || '—'}</td>
+        <td><button class="btn btn-sm" onclick="resendPasswordSetup('${u.id}')">重新發送</button></td>
+      </tr>
+    `).join('')}</tbody></table>`;
+}
+
+function fmtTs(v) {
+  return v?.toDate ? v.toDate().toLocaleString('zh-TW') : '—';
+}
+
+async function createPasswordSetupForUser(u, force = false) {
+  if (!u.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email)) throw new Error("請輸入正確 email");
+  if (u.isPasswordSet && !force) return;
+  const raw = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
+  const tokenHash = await sha256(raw);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await addDoc(collection(db, "password_setup_tokens"), {
+    user_id: u.id, token_hash: tokenHash, expires_at: expiresAt, used_at: null, created_at: serverTimestamp(), sent_at: serverTimestamp()
+  });
+  const link = `${location.origin}/password-setup.html?token=${encodeURIComponent(raw)}&email=${encodeURIComponent(u.email)}`;
+  await updateDoc(doc(db, "users", u.id), {
+    passwordSetupEmailSent: true, passwordSetupSentAt: serverTimestamp(), passwordSetupSendStatus: "成功", passwordSetupSendError: "",
+    isPasswordSet: !!u.isPasswordSet
+  });
+  await addDoc(collection(db, "email_logs"), {
+    user_id: u.id, email: u.email, type: "password_setup", status: "success", error_message: "", created_at: serverTimestamp(), link_preview: link
+  });
+}
+
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+window.sendBatchPasswordSetup = async () => {
+  const snap = await getDocs(collection(db, "users"));
+  const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  for (const u of users) {
+    try { await createPasswordSetupForUser(u, false); }
+    catch (e) {
+      await updateDoc(doc(db, "users", u.id), { passwordSetupSendStatus: "失敗", passwordSetupSendError: e.message, passwordSetupSentAt: serverTimestamp() });
+      await addDoc(collection(db, "email_logs"), { user_id: u.id, email: u.email || "", type: "password_setup", status: "failed", error_message: e.message, created_at: serverTimestamp() });
+    }
+  }
+  alert("批次寄送完成");
+  renderPasswordSetupPanel();
+};
+
+window.resendPasswordSetup = async (uid) => {
+  const s = await getDoc(doc(db, "users", uid));
+  if (!s.exists()) return alert("查無此 email，請聯繫管理員");
+  try { await createPasswordSetupForUser({ id: uid, ...s.data() }, true); alert("已重新發送"); }
+  catch (e) { alert(e.message); }
+  renderPasswordSetupPanel();
+};
+
+window.exportPasswordSetup = async (done) => {
+  const snap = await getDocs(collection(db, "users"));
+  const list = snap.docs.map(d => d.data()).filter(u => !!u.email && (!!u.isPasswordSet === done));
+  const rows = ["姓名,Email,是否已完成密碼設定,完成時間", ...list.map(u => `${u.name || ""},${u.email},${u.isPasswordSet ? "是" : "否"},${fmtTs(u.passwordSetAt)}`)];
+  const blob = new Blob(["\ufeff" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = done ? "password_setup_done.csv" : "password_setup_pending.csv";
+  a.click();
 };
 
 // ======== 成績系統 ========
